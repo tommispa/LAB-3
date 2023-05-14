@@ -15,7 +15,23 @@ end mute;
 
 architecture Behavioral of mute is
 
+	signal data	:	STD_LOGIC_VECTOR(23 downto 0);
+
 begin
 
+	process(all)
+		begin
+
+			if s_axis_tvalid = '1' then
+				data  <= (not mute_enable) and s_axis_tdata; -- L'audio passa se mute_enable è 0
+				m_axis_tvalid <= '1';
+				if m_axis_tready = '1' then
+					m_axis_tdata <= data;
+				end if;
+			end if;
+
+	end process;
 
 end Behavioral;
+
+
