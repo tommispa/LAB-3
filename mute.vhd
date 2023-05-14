@@ -15,7 +15,7 @@ end mute;
 
 architecture Behavioral of mute is
 
-	signal data	:	STD_LOGIC_VECTOR(23 downto 0);
+	signal data	:	STD_LOGIC_VECTOR(23 downto 0) := (others => '0');
 
 begin
 

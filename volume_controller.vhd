@@ -21,5 +21,22 @@ architecture Behavioral of volume_controller is
 
 begin
 
+	process(aclk,aresetn)
+
+		begin
+			
+			if aresetn = 1 then
+				volume <= (others => '0');
+
+			elsif rising_edge(aclk) then
+
+				if s_axis_tvalid = '1' then
+
+
+
+			end if;
+
+			
+
 
 end Behavioral;
