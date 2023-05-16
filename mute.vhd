@@ -6,8 +6,10 @@ entity mute is
 		m_axis_tvalid	: out STD_LOGIC;
 		m_axis_tdata	: out STD_LOGIC_VECTOR(23 downto 0);
 		m_axis_tready	: in STD_LOGIC;
+		m_axis_tlast	: out STD_LOGIC; -- Segnale che mando all'IS_2 per dirgli se il pacchetto che mando è left channel o rigth channel
 
 		s_axis_tvalid	: in STD_LOGIC;
+		s_axis_tready   : out STD_LOGIC;
 		s_axis_tdata	: in STD_LOGIC_VECTOR(23 downto 0);
 
         mute_enable     : in STD_LOGIC);
