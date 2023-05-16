@@ -3,14 +3,15 @@ use IEEE.STD_LOGIC_1164.ALL;
 
 entity mute is
     Port ( 
+		m_axis_tlast	: out STD_LOGIC; -- Segnale che mi dice se sto ricevendo da canale di destra o di sinistra
 		m_axis_tvalid	: out STD_LOGIC;
 		m_axis_tdata	: out STD_LOGIC_VECTOR(23 downto 0);
 		m_axis_tready	: in STD_LOGIC;
-		m_axis_tlast	: out STD_LOGIC; -- Segnale che mando all'IS_2 per dirgli se il pacchetto che mando è left channel o rigth channel
-
+		   
+		s_axis_tlast 	: in STD_LOGIC; -- Segnale che arriva dall'IS_2, che mi dice se sto ricevendo left channel o rigth channel
 		s_axis_tvalid	: in STD_LOGIC;
-		s_axis_tready   : out STD_LOGIC;
 		s_axis_tdata	: in STD_LOGIC_VECTOR(23 downto 0);
+		s_axis_tready	: out STD_LOGIC;
 
         mute_enable     : in STD_LOGIC);
 end mute;
