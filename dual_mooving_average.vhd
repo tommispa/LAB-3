@@ -55,12 +55,18 @@ signal filter_enable_reg : STD_LOGIC := '0';
 
 
 begin
--- Assegnazione filter enable
+
 data_sign <= SIGNED(s_axis_tdata);
 
 process (aclk, aresetn)
 
 begin
+
+	-- Con filter_enable_reg capisco quando devo applicare il filtro, in quanto in  
+	-- uscita dall'edge_detector ho un impulso e non un segnale costante
+	if filter_enable = '1' then	
+		filter_enable_reg <= (not filter_enable_reg);
+	end if;
 
 	if aresetn = '0' then
 		
@@ -73,7 +79,14 @@ begin
 		data_sign <= (others => '0');
 		
 		filter_enable_reg <= '0';
-		-- reset s_tready
+		
+		-- Resetto i segnali con cui gestisco la comunicazione fra i blocchi
+		s_axis_tready <= '0';
+
+		m_axis_tlast <= '0';
+		m_axis_tvalid <= '0';
+		m_axis_tdata <= (others => '0'); 
+		
 
 	elsif rising_edge(aclk) then
 		
