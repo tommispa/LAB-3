@@ -67,13 +67,13 @@ begin
 				if jstk_pos >= step_div then			-- se il joystick si muove verso dx devo abbassare il volume a sx
 
 					for i in 0 to division_step-1 loop
-						num_of_step <= 0 & jstk_pos(9-i downto 0);
+						num_of_step <= 0 & jstk_pos(9 downto i);
 					end loop;
 				
 					for j in 1 to max_step_sx loop
 					
 						if j = to_integer(signed(num_of_step)) then			-- da capire se serva realmente l'if, visto da chatGPT
-							data_sig <= 0 & data_sig(23-j downto 0);
+							data_sig <= 0 & data_sig(23 downto j);
 						end if;
 
 					end loop;
@@ -86,7 +86,7 @@ begin
 					
 					end if;
 
-				elsif (jstk_pos >= 0) & (jstk_pos < step_div) then
+				else
 					if m_axis_tready = '1' then
 						
 						m_axis_tvalid <= '1';
@@ -94,7 +94,7 @@ begin
 						m_axis_tdata <= s_axis_tdata;
 					end if;
 				end if;
-				end if;
+
 
 				
 				
@@ -105,14 +105,18 @@ begin
 
 				if jstk_pos <= -step_div then
 
-					for i in 0 to division_step loop
-						num_of_step <= 1 & jstk_pos(9-i downto 0);
+					for i in 0 to division_step-1 loop
+						if i = division_step-1 then
+							num_of_step <= 1 & jstk_pos(9 downto i);
+						else
+							num_of_step <= 0 & jstk_pos(9 downto i);
+						end if;
 					end loop;
 
 					for j in 1 to max_step_dx loop
 					
 						if j = to_integer(signed(num_of_step)) then			-- da capire se serva realmente l'if, visto da chatGPT
-							data_sig <= 0 & data_sig(23-j downto 0);
+							data_sig <= 0 & data_sig(23 downto j);
 						end if;
 					end loop;
 
@@ -124,7 +128,7 @@ begin
 					
 					end if;
 
-				elsif (jstk_pos <= 0) & (jstk_pos > -step_div) then
+				else 
 					if m_axis_tready = '1' then
 						
 						m_axis_tvalid <= '1';
