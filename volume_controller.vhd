@@ -51,7 +51,6 @@ begin
 				jstk_pos <= (others => '0');
 				data_sig <= (others => '0');
 		
-		
 				-- Resetto i segnali con cui gestisco la comunicazione fra i blocchi
 				s_axis_tready <= '0';
 		
@@ -65,7 +64,6 @@ begin
 		
 				if s_axis_tvalid = '1' then
 		
-					-------------- dato sx --------------
 					if discriminator /= s_axis_tlast or init = '0' then
 
 						init <= '1';
@@ -73,22 +71,19 @@ begin
 						discriminator <= s_axis_tlast;
 		
 						if jstk_pos >= step_div then			-- se il joystick si muove verso l'alto, il volume deve aumentare
-		
-							
-							num_of_step <= (others => '0') & jstk_pos(9 downto division_step-1);
-							
+									
+							num_of_step <= (others => '0') & jstk_pos(9 downto division_step-1);													
 						
-							if data_sig < 0 then
-								
+							if data_sig < 0 then																					--questo if else puo' sicuramente essere ottimizzato (anche quello successivo)
+
 								data_sig <= data_sig(23-to_integer(signed(num_of_step)) downto 0) & (others => '0');
-
-
+								
 								data_sig(23) <= '1';
-
+							
 							else
 
 								data_sig <= data_sig(23-to_integer(signed(num_of_step)) downto 0) & (others => '0');
-								
+							
 							end if;
 		
 							if m_axis_tready = '1' then
@@ -98,63 +93,43 @@ begin
 								m_axis_tdata <= std_logic_vector(data_sig(23 downto 0));
 							
 							end if;
-		
-						else
-							if m_axis_tready = '1' then
+						end if;
+
+						if jstk_pos < step_div then			-- se il joystick si muove verso il basso, il volume deve diminuire
 								
+							num_of_step <= (others => '0') & jstk_pos(9 downto division_step-1);
+						
+							if data_sig < 0 then
+
+								data_sig <= (others => '0') & data_sig(23 downto to_integer(signed(num_of_step)));
+								
+								data_sig(23) <= '1';
+								
+							else
+								
+								data_sig <= (others => '0') & data_sig(23 downto to_integer(signed(num_of_step)));
+						
+							end if;
+		
+							if m_axis_tready = '1' then
+		
 								m_axis_tvalid <= '1';
 								m_axis_tlast <= '0';
-								m_axis_tdata <= s_axis_tdata;
-							end if;
-						end if;
-		
-		
-						
-						
-					end if;
-		
-					-------------- dato dx --------------
-					if s_axis_tlast = '1' then
-		
-						if jstk_pos <= -step_div then
-							
-							num_of_step <= (others => '0') & jstk_pos(9 downto division_step-1);
-							
-							num_of_Step(9-(division_step-1)) <= '0';
-
-							num_of_step(9) <= '1';
-		
-							if data_sig < 0 then
-								
-								data_sig <= (others => '0') & data_sig(23 downto to_integer(signed(num_of_step)));
-								
-								data_sig(23-to_integer(signed(num_of_step))) <= '0';
-
-								data_sig(23) <= '1';
-
-							else
-
-								data_sig <= (others => '0') & data_sig(23 downto to_integer(signed(num_of_step)));
-								
-							end if;
-		
-							if m_axis_tready = '1' then
-		
-								m_axis_tvalid <= '1';
-								m_axis_tlast <= '1';
 								m_axis_tdata <= std_logic_vector(data_sig(23 downto 0));
 							
 							end if;
-		
-						else 
-							if m_axis_tready = '1' then
-								
-								m_axis_tvalid <= '1';
-								m_axis_tlast <= '1';
-								m_axis_tdata <= s_axis_tdata;
-							end if;
 						end if;
 		
+					else
+						
+						if m_axis_tready = '1' then
+									
+							m_axis_tvalid <= '1';
+							m_axis_tlast <= '0';
+							m_axis_tdata <= s_axis_tdata;
+
+						end if;
+
 					end if;
 		
 				end if;
