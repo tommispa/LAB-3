@@ -36,6 +36,7 @@ architecture Behavioral of balance_controller is
 
 
 
+
 begin
 
 	jstk_pos <= signed(balance);
