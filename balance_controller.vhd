@@ -33,8 +33,6 @@ architecture Behavioral of balance_controller is
 	signal		data_sig 	: signed(23 downto 0) := (others => '0');
 	signal		num_of_step	: signed(9 downto 0) := (others => '0');
 	constant 	step_div 	: integer := 2**division_step;
-	constant	max_step_sx	: integer := 512/step_div;					-- da migliorare e verificare
-	constant	max_step_dx : integer := -512/step_div;
 
 
 
@@ -71,25 +69,23 @@ begin
 		
 						if jstk_pos >= step_div then			-- se il joystick si muove verso dx devo abbassare il volume a sx
 		
-							for i in 0 to division_step-1 loop
-								num_of_step <= '0' & jstk_pos(9 downto i);
-							end loop;
-						
-							for j in 1 to max_step_sx loop
-
-								if data_sig < 0 then
-									if j = 1 then
-										data_sig(23) <= '0';																			
-									elsif j = max_step_sx then
-										data_sig(23) <= '1';
-									end if;
-								end if;
 							
-								if j = to_integer(signed(num_of_step)) then			-- da capire se serva realmente l'if, visto da chatGPT
-									data_sig <= '0' & data_sig(23 downto j);
-								end if;
+							num_of_step <= (others => '0') & jstk_pos(9 downto division_step-1);
+							
+						
+							if data_sig < 0 then
+								
+								data_sig <= (others => '0') & data_sig(23 downto to_integer(signed(num_of_step)));
+								
+								data_sig(23-to_integer(signed(num_of_step))) <= '0';
 
-							end loop;
+								data_sig(23) <= '1';
+
+							else
+
+								data_sig <= (others => '0') & data_sig(23 downto to_integer(signed(num_of_step)));
+								
+							end if;
 		
 							if m_axis_tready = '1' then
 		
@@ -117,36 +113,26 @@ begin
 					if s_axis_tlast = '1' then
 		
 						if jstk_pos <= -step_div then
-		
-							for i in 0 to division_step-1 loop
-
-								if i = 0 then
-									jstk_pos(9) <= '0';
-								end if; 
-
-								num_of_step <= '0' & jstk_pos(9 downto i);
-
-								if i = division_step-1 then
-									jstk_pos(9) <= '1';
-								end if;
-									
-							end loop;
-		
-							for j in 1 to max_step_dx loop
-
-								if data_sig < 0 then
-									if j = 1 then
-										data_sig(23) <= '0';																			
-									elsif j = max_step_dx then
-										data_sig(23) <= '1';
-									end if;
-								end if;
 							
-								if j = to_integer(signed(num_of_step)) then			-- da capire se serva realmente l'if, visto da chatGPT
-									data_sig <= '0' & data_sig(23 downto j);
-								end if;
+							num_of_step <= (others => '0') & jstk_pos(9 downto division_step-1);
 							
-							end loop;
+							num_of_Step(9-(division_step-1)) <= '0';
+
+							num_of_step(9) <= '1';
+		
+							if data_sig < 0 then
+								
+								data_sig <= (others => '0') & data_sig(23 downto to_integer(signed(num_of_step)));
+								
+								data_sig(23-to_integer(signed(num_of_step))) <= '0';
+
+								data_sig(23) <= '1';
+
+							else
+
+								data_sig <= (others => '0') & data_sig(23 downto to_integer(signed(num_of_step)));
+								
+							end if;
 		
 							if m_axis_tready = '1' then
 		
