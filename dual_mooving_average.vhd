@@ -123,10 +123,8 @@ begin
 					m_axis_tdata <= std_logic_vector(sum_vec_sx(23 + bit_avarage downto bit_avarage));
 				
 					end if;
-			
-				end if;
 ----------------------------- Memoria destra ---------------------------------------------
-				
+				else
 				-- Assegno al primo elemento della memoria destra il dato
 				mem_dx(0)<= data_sign;
 
@@ -150,6 +148,8 @@ begin
 						m_axis_tlast <= '1';
 						m_axis_tdata <= std_logic_vector(sum_vec_dx(23 + bit_avarage downto bit_avarage));
 					
+				end if;
+
 				end if;
 				
 			end if;
