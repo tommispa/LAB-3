@@ -85,6 +85,18 @@ begin
 								data_sig <= data_sig(23-to_integer(signed(num_of_step)) downto 0) & (others => '0');
 							
 							end if;
+
+							if data_sig >= 512 then
+
+								data_sig <= to_signed(512,24);
+
+							end if;
+
+							if data_sig <= -512 then
+
+								data_sig <= to_signed(-512,24);
+
+							end if;
 		
 							if m_axis_tready = '1' then
 		
@@ -109,6 +121,18 @@ begin
 								
 								data_sig <= (others => '0') & data_sig(23 downto to_integer(signed(num_of_step)));
 						
+							end if;
+
+							if data_sig >= 512 then
+
+								data_sig <= to_signed(512,24);
+
+							end if;
+
+							if data_sig <= -512 then
+
+								data_sig <= to_signed(-512,24);
+
 							end if;
 		
 							if m_axis_tready = '1' then

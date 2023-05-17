@@ -34,7 +34,7 @@ begin
 			-- Con mute_enable_reg capisco quando devo applicare il filtro, in quanto in  
 			-- uscita dall'edge_detector ho un impulso e non un segnale costante
 			if mute_enable = '1' then
-				mute_enable_reg <= not mute_enable_reg
+				mute_enable_reg <= not mute_enable_reg;
 			end if;
 
 			-- Caso in cui ho il filtro attivo
@@ -98,9 +98,11 @@ begin
 							m_axis_tdata <= s_axis_tdata;
 
 						end if;
+					end if;
 				end if;
 
 			end if;
+							
 
 
 
@@ -110,7 +112,6 @@ begin
 			--	if m_axis_tready = '1' then
 			--		m_axis_tdata <= data;
 			--	end if;
-			--  end if;
 
 	end process;
 
