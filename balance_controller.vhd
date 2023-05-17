@@ -76,11 +76,19 @@ begin
 							end loop;
 						
 							for j in 1 to max_step_sx loop
+
+								if data_sig < 0 then
+									if j = 1 then
+										data_sig(23) <= '0';																			
+									elsif j = max_step_sx then
+										data_sig(23) <= '1';
+									end if;
+								end if;
 							
 								if j = to_integer(signed(num_of_step)) then			-- da capire se serva realmente l'if, visto da chatGPT
 									data_sig <= '0' & data_sig(23 downto j);
 								end if;
-		
+
 							end loop;
 		
 							if m_axis_tready = '1' then
@@ -111,18 +119,33 @@ begin
 						if jstk_pos <= -step_div then
 		
 							for i in 0 to division_step-1 loop
+
+								if i = 0 then
+									jstk_pos(9) <= '0';
+								end if; 
+
+								num_of_step <= '0' & jstk_pos(9 downto i);
+
 								if i = division_step-1 then
-									num_of_step <= '1' & jstk_pos(9 downto i);
-								else
-									num_of_step <= '0' & jstk_pos(9 downto i);
+									jstk_pos(9) <= '1';
 								end if;
+									
 							end loop;
 		
 							for j in 1 to max_step_dx loop
+
+								if data_sig < 0 then
+									if j = 1 then
+										data_sig(23) <= '0';																			
+									elsif j = max_step_dx then
+										data_sig(23) <= '1';
+									end if;
+								end if;
 							
 								if j = to_integer(signed(num_of_step)) then			-- da capire se serva realmente l'if, visto da chatGPT
 									data_sig <= '0' & data_sig(23 downto j);
 								end if;
+							
 							end loop;
 		
 							if m_axis_tready = '1' then
