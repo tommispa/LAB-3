@@ -41,12 +41,12 @@ signal mem_dx : matrix := (others => (others => '0'));
 
 
 -- Vettore intermedio per fare la somma dei campione del canale di sinistra
-signal sum_vec_sx : SIGNED(23 + bit_avarage downto 0) := (others => '0'); 
+signal sum_vec_sx	: SIGNED(23 + bit_avarage downto 0) := (others => '0'); 
 -- Vettore intermedio per fare la somma dei campione del canale di destra
-signal sum_vec_dx : SIGNED(23 + bit_avarage downto 0) := (others => '0'); 
+signal sum_vec_dx	: SIGNED(23 + bit_avarage downto 0) := (others => '0'); 
 
 -- Rendo il dato in ingresso un signed
-signal data_sign : SIGNED(23 downto 0) := (others => '0') ;
+signal data_sign	: SIGNED(23 downto 0) := (others => '0');
 
 -- Segnale intermedio per filter eneable: essendo quest'ultimo un impulso utilizziamo questo
 -- registro per capire se dobbiamo applicare il filtro o meno
