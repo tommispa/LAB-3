@@ -25,6 +25,7 @@ architecture Behavioral of led_controller is
 
     signal color_vect : std_logic_vector(23 downto 0) := (others => '0') ;
     
+    begin
     
     process (aclk)
 
