@@ -9,14 +9,7 @@ entity led_controller is
 
             led_r : out STD_LOGIC_VECTOR (7 downto 0);
             led_g : out STD_LOGIC_VECTOR (7 downto 0);
-            led_b : out STD_LOGIC_VECTOR (7 downto 0);
-
-            
-            s_axis_tvalid	: in STD_LOGIC;
-            s_axis_tdata	: in STD_LOGIC_VECTOR(23 downto 0);
-            s_axis_tready	: out STD_LOGIC;
-
-            aclk : in STD_LOGIC          
+            led_b : out STD_LOGIC_VECTOR (7 downto 0)
         
           );
 end led_controller;
@@ -26,30 +19,25 @@ architecture Behavioral of led_controller is
     signal color_vect : std_logic_vector(23 downto 0) := (others => '0') ;
     
     begin
-    
-    process (aclk)
 
-        begin
         led_r <= color_vect(7 downto 0);
         led_b <= color_vect(15 downto 8);
-        led_g <= color_vect(23 downto 16);
+        led_g <= color_vect(23 downto 16);       
+    
+        process (mute_enable,filter_enable)
 
-            if s_axis_tvalid = '1' then
+            begin
 
                 if mute_enable = '1' then
-                    color_vect(7 downto 0) <= s_axis_tdata; 
-                end if; 
+                    color_vect <= X"FF0000"; 
+                
+                elsif filter_enable = '1' and mute_enable = '0' then
+                    color_vect <= X"0000FF"; 
 
-                if filter_enable = '1' then
-                    color_vect(15 downto 8) <= s_axis_tdata; 
+                else
+                    color_vect <= X"00FF00"; 
                 end if; 
-
-                if (mute_enable = '1') and (filter_enable = '1') then
-                    color_vect(7 downto 0) <= s_axis_tdata; 
-                end if; 
-
-                color_vect(23 downto 16) <= s_axis_tdata; 
-            end if; 
+        
         end process; 
 
 end Behavioral;
