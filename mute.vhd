@@ -27,7 +27,7 @@ architecture Behavioral of mute is
 
 begin
 
-	process(all)
+	process(m_axis_tready,s_axis_tlast,s_axis_tvalid,s_axis_tdata,mute_enable)
 		
 		begin
 			
