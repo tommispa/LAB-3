@@ -33,7 +33,7 @@ architecture Behavioral of balance_controller is
 	signal		data_sig 	: signed(23 downto 0) := (others => '0');
 	signal		num_of_step	: signed(9 downto 0) := (others => '0');
 	constant 	step_div 	: integer := 2**division_step;
-
+	signal		zero		: signed(23 downto 0) := (others => '0');
 
 
 
@@ -71,12 +71,12 @@ begin
 						if jstk_pos >= step_div then			-- se il joystick si muove verso dx devo abbassare il volume a sx
 		
 							
-							num_of_step <= (others => '0') & jstk_pos(9 downto division_step-1);
+							num_of_step <= zero(division_step-2 downto 0) & jstk_pos(9 downto division_step-1);
 							
 						
 							if data_sig < 0 then
 								
-								data_sig <= (others => '0') & data_sig(23 downto to_integer(signed(num_of_step)));
+								data_sig <= zero(to_integer(signed(num_of_step))-2 downto 0) & data_sig(23 downto to_integer(signed(num_of_step))-1);
 								
 								data_sig(23-to_integer(signed(num_of_step))) <= '0';
 
@@ -84,7 +84,7 @@ begin
 
 							else
 
-								data_sig <= (others => '0') & data_sig(23 downto to_integer(signed(num_of_step)));
+								data_sig <= zero(to_integer(signed(num_of_step))-2 downto 0) & data_sig(23 downto to_integer(signed(num_of_step))-1);
 								
 							end if;
 		
@@ -115,7 +115,7 @@ begin
 		
 						if jstk_pos <= -step_div then
 							
-							num_of_step <= (others => '0') & jstk_pos(9 downto division_step-1);
+							num_of_step <= zero(division_step-2 downto 0) & jstk_pos(9 downto division_step-1);
 							
 							num_of_Step(9-(division_step-1)) <= '0';
 
@@ -123,7 +123,7 @@ begin
 		
 							if data_sig < 0 then
 								
-								data_sig <= (others => '0') & data_sig(23 downto to_integer(signed(num_of_step)));
+								data_sig <= zero(to_integer(signed(num_of_step))-2 downto 0) & data_sig(23 downto to_integer(signed(num_of_step))-1);
 								
 								data_sig(23-to_integer(signed(num_of_step))) <= '0';
 
@@ -131,7 +131,7 @@ begin
 
 							else
 
-								data_sig <= (others => '0') & data_sig(23 downto to_integer(signed(num_of_step)));
+								data_sig <= zero(to_integer(signed(num_of_step))-2 downto 0) & data_sig(23 downto to_integer(signed(num_of_step))-1);
 								
 							end if;
 		
