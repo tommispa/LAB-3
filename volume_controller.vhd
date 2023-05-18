@@ -34,6 +34,7 @@ architecture Behavioral of volume_controller is
 	constant 	step_div 	: integer := 2**division_step;
 	signal 		init		: std_logic := '0';
 	signal		discriminator :	std_logic := '0';
+	signal		zero		: signed(23 downto 0) := (others => '0');
 
 
 
@@ -72,17 +73,17 @@ begin
 		
 						if jstk_pos >= step_div then			-- se il joystick si muove verso l'alto, il volume deve aumentare
 									
-							num_of_step <= (others => '0') & jstk_pos(9 downto division_step-1);													
+							num_of_step <= zero(division_step-2 downto 0) & jstk_pos(9 downto division_step-1);													
 						
 							if data_sig < 0 then																					--questo if else puo' sicuramente essere ottimizzato (anche quello successivo)
 
-								data_sig <= data_sig(23-to_integer(signed(num_of_step)) downto 0) & (others => '0');
+								data_sig <= data_sig(23-to_integer(signed(num_of_step)) downto 0) & zero(to_integer(signed(num_of_step))-1 downto 0);
 								
 								data_sig(23) <= '1';
 							
 							else
 
-								data_sig <= data_sig(23-to_integer(signed(num_of_step)) downto 0) & (others => '0');
+								data_sig <= data_sig(23-to_integer(signed(num_of_step)) downto 0) & zero(to_integer(signed(num_of_step))-1 downto 0);
 							
 							end if;
 
