@@ -110,7 +110,7 @@ begin
 					end loop;
 				
 				-- Faccio la somma di tutti gli elementi della memoria sinistra
-					for i in 0 to AVARAGE loop
+					for i in 0 to AVARAGE - 1 loop
 
 					sum_vec_sx <= sum_vec_sx + mem_sx(i);
 
@@ -123,6 +123,9 @@ begin
 					m_axis_tdata <= std_logic_vector(sum_vec_sx(23 + bit_avarage downto bit_avarage));
 				
 					end if;
+
+					sum_vec_sx <= (others => '0');
+					
 ----------------------------- Memoria destra ---------------------------------------------
 				else
 				-- Assegno al primo elemento della memoria destra il dato
@@ -136,7 +139,7 @@ begin
 				end loop;				
 				
 				-- Faccio la somma di tutti gli elementi della memoria
-				for j in 0 to AVARAGE loop
+				for j in 0 to AVARAGE - 1 loop
 					
 					sum_vec_dx <= sum_vec_dx + mem_dx(j);
 
@@ -146,9 +149,10 @@ begin
 
 						m_axis_tvalid <= '1';
 						m_axis_tlast <= '1';
-						m_axis_tdata <= std_logic_vector(sum_vec_dx(23 + bit_avarage downto bit_avarage));
-					
+						m_axis_tdata <= std_logic_vector(sum_vec_dx(23 + bit_avarage downto bit_avarage)); 
 				end if;
+
+				sum_vec_dx <= (others => '0');
 
 				end if;
 				
