@@ -28,29 +28,38 @@ end volume_controller;
 architecture Behavioral of volume_controller is
 
 
-	signal 		jstk_pos 	: signed(9 downto 0) := (others => '0');
-	signal		data_sig 	: signed(23 downto 0) := (others => '0');
-	signal		num_of_step	: signed(9 downto 0) := (others => '0');
+	signal 		jstk_pos_y 	: signed(9 downto 0) := (others => '0');
+	signal		data_vol	: signed(23 downto 0) := (others => '0');
+	signal		num_of_step_y	: signed(9 downto 0) := (others => '0');
+	signal		mem2			: std_logic_vector(23 downto 0) := (others => '0');
+	signal		mem_vol			: std_logic_vector(9 downto 0) := (others => '0');
 	constant 	step_div 	: integer := 2**division_step;
+	constant    step_div2   : integer := 2**(division_step-1);
 	signal 		init		: std_logic := '0';
 	signal		discriminator :	std_logic := '0';
-	signal		zero		: signed(23 downto 0) := (others => '0');
+	signal		zero_vol		: signed(9 downto 0) := (others => '0');
+	signal      one_vol         : signed(9 downto 0) := (others => '1');
+	constant	max_step_sx : integer := 512/step_div;
+	constant	max_step_dx : integer := -512/step_div;
 
 
 
 begin
 
-	jstk_pos <= signed(volume);
-	data_sig <= signed(s_axis_tdata);
+	mem2 <= s_axis_tdata;
+	mem_vol <= volume;
+	jstk_pos_y <= signed(mem_vol);
+	data_vol <= signed(mem2);
 	
 	process (aclk, aresetn)
+
 	
 		begin
 
 			if aresetn = '0' then
 
-				jstk_pos <= (others => '0');
-				data_sig <= (others => '0');
+				jstk_pos_y <= (others => '0');
+				data_vol <= (others => '0');
 		
 				-- Resetto i segnali con cui gestisco la comunicazione fra i blocchi
 				s_axis_tready <= '0';
@@ -71,31 +80,31 @@ begin
 
 						discriminator <= s_axis_tlast;
 		
-						if jstk_pos >= step_div then			-- se il joystick si muove verso l'alto, il volume deve aumentare
+						if jstk_pos_y >= step_div2 then			-- se il joystick si muove verso l'alto, il volume deve aumentare
 									
-							num_of_step <= zero(division_step-2 downto 0) & jstk_pos(9 downto division_step-1);													
-						
-							if data_sig < 0 then																					--questo if else puo' sicuramente essere ottimizzato (anche quello successivo)
+							num_of_step_y <= zero_vol(division_step downto 1) & jstk_pos_y(9 downto division_step);													
+						    																		
+							gen_loop: for i in 1 to max_step_sx loop
 
-								data_sig <= data_sig(23-to_integer(signed(num_of_step)) downto 0) & zero(to_integer(signed(num_of_step))-1 downto 0);
-								
-								data_sig(23) <= '1';
-							
-							else
+								if i <= to_integer(signed(num_of_step_y)) then
 
-								data_sig <= data_sig(23-to_integer(signed(num_of_step)) downto 0) & zero(to_integer(signed(num_of_step))-1 downto 0);
+									data_vol <= data_vol(data_vol'high-1 downto 0) & '0';
+
+								end if;
+
+							end loop gen_loop;
 							
 							end if;
 
-							if data_sig >= 512 then
+							if data_vol >= 512 then
 
-								data_sig <= to_signed(512,24);
+								data_vol <= to_signed(512,24);
 
 							end if;
 
-							if data_sig <= -512 then
+							if data_vol <= -512 then
 
-								data_sig <= to_signed(-512,24);
+								data_vol <= to_signed(-512,24);
 
 							end if;
 		
@@ -103,36 +112,50 @@ begin
 		
 								m_axis_tvalid <= '1';
 								m_axis_tlast <= '0';
-								m_axis_tdata <= std_logic_vector(data_sig(23 downto 0));
+								m_axis_tdata <= std_logic_vector(data_vol(23 downto 0));
 							
 							end if;
 						end if;
 
-						if jstk_pos < step_div then			-- se il joystick si muove verso il basso, il volume deve diminuire
+						if jstk_pos_y < step_div2 then			-- se il joystick si muove verso il basso, il volume deve diminuire
 								
-							num_of_step <= zero(division_step-2 downto 0) & jstk_pos(9 downto division_step-1);
-						
-							if data_sig < 0 then
+							num_of_step_y <= one_vol(division_step downto 1) & jstk_pos_y(9 downto division_step);
+						    
+							if data_vol < 0 then
 
-								data_sig <= zero(to_integer(signed(num_of_step))-2 downto 0) & data_sig(23 downto to_integer(signed(num_of_step))-1);
+								gen_loop2: for i in 1 to max_step_sx loop
+
+									if i <= to_integer(signed(num_of_step_y)) then
+
+										data_vol <= '1' & data_vol(data_vol'high downto 1);
+
+									end if;
+
+								end loop gen_loop2;
 								
-								data_sig(23) <= '1';
 								
 							else
 								
-								data_sig <= zero(to_integer(signed(num_of_step))-2 downto 0) & data_sig(23 downto to_integer(signed(num_of_step))-1);
-						
+							gen_loop3: for i in 1 to max_step_sx loop
+
+								if i <= to_integer(signed(num_of_step_y)) then
+
+									data_vol <= '0' & data_vol(data_vol'high downto 1);
+
+								end if;
+
+							end loop gen_loop3;						
 							end if;
 
-							if data_sig >= 512 then
+							if data_vol >= 512 then
 
-								data_sig <= to_signed(512,24);
+								data_vol <= to_signed(512,24);
 
 							end if;
 
-							if data_sig <= -512 then
+							if data_vol <= -512 then
 
-								data_sig <= to_signed(-512,24);
+								data_vol <= to_signed(-512,24);
 
 							end if;
 		
@@ -140,7 +163,7 @@ begin
 		
 								m_axis_tvalid <= '1';
 								m_axis_tlast <= '0';
-								m_axis_tdata <= std_logic_vector(data_sig(23 downto 0));
+								m_axis_tdata <= std_logic_vector(data_vol(23 downto 0));
 							
 							end if;
 						end if;
@@ -158,7 +181,6 @@ begin
 					end if;
 		
 				end if;
-			end if;
 
 	end process;
 

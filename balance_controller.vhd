@@ -29,26 +29,36 @@ end balance_controller;
 architecture Behavioral of balance_controller is
 
 
-	signal 		jstk_pos 	: signed(9 downto 0) := (others => '0');
+	signal 		jstk_pos_x 	: signed(9 downto 0)  := (others => '0');
 	signal		data_sig 	: signed(23 downto 0) := (others => '0');
-	signal		num_of_step	: signed(9 downto 0) := (others => '0');
+	signal		num_of_step_x	: signed(9 downto 0)  := (others => '0');
+	signal      zero        : signed(9 downto 0)  := (others => '0');
+	signal      one         : signed (9 downto 0) := (others => '1');
+	signal		mem			: std_logic_vector(23 downto 0) := (others => '0');
+	signal		mem_balance : std_logic_vector(9 downto 0) := (others => '0');
 	constant 	step_div 	: integer := 2**division_step;
-	signal		zero		: signed(23 downto 0) := (others => '0');
+	constant    step_div2   : integer := 2**(division_step-1);
+	constant	max_step_sx : integer := 512/step_div;
+	constant	max_step_dx : integer := -512/step_div;
+
 
 
 
 begin
 
-	jstk_pos <= signed(balance);
-	data_sig <= signed(s_axis_tdata);
+	mem <= s_axis_tdata;
+	mem_balance <= balance;
+	jstk_pos_x <= signed(mem_balance);
+	data_sig <= signed(mem);
 	
 	process (aclk, aresetn)
+	
 	
 		begin
 
 			if aresetn = '0' then
 
-				jstk_pos <= (others => '0');
+				jstk_pos_x <= (others => '0');
 				data_sig <= (others => '0');
 		
 		
@@ -68,23 +78,38 @@ begin
 					-------------- dato sx --------------
 					if s_axis_tlast = '0' then
 		
-						if jstk_pos >= step_div then			-- se il joystick si muove verso dx devo abbassare il volume a sx
+						if jstk_pos_x >= step_div2 then			-- se il joystick si muove verso dx devo abbassare il volume a sx
 		
 							
-							num_of_step <= zero(division_step-2 downto 0) & jstk_pos(9 downto division_step-1);
+							num_of_step_x <= zero(division_step downto 1) & jstk_pos_x(9 downto division_step);
 							
-						
 							if data_sig < 0 then
-								
-								data_sig <= zero(to_integer(signed(num_of_step))-2 downto 0) & data_sig(23 downto to_integer(signed(num_of_step))-1);
-								
-								data_sig(23-to_integer(signed(num_of_step))) <= '0';
 
-								data_sig(23) <= '1';
+								gen_loop: for i in 1 to max_step_sx loop
 
+									if i <= to_integer(signed(num_of_step_x)) then
+
+										data_sig <= '1' & data_sig(data_sig'high downto 1);
+
+									end if;
+
+								end loop gen_loop;
+							 
+						
+							 
 							else
+							 
 
-								data_sig <= zero(to_integer(signed(num_of_step))-2 downto 0) & data_sig(23 downto to_integer(signed(num_of_step))-1);
+							gen_loop2: for i in 1 to max_step_sx loop
+
+								if i <= to_integer(signed(num_of_step_x)) then
+
+									data_sig <= '0' & data_sig(data_sig'high downto 1);
+
+								end if;
+
+							end loop gen_loop2;
+						
 								
 							end if;
 		
@@ -113,25 +138,34 @@ begin
 					-------------- dato dx --------------
 					if s_axis_tlast = '1' then
 		
-						if jstk_pos <= -step_div then
+						if jstk_pos_x <= -step_div2 then
 							
-							num_of_step <= zero(division_step-2 downto 0) & jstk_pos(9 downto division_step-1);
-							
-							num_of_Step(9-(division_step-1)) <= '0';
-
-							num_of_step(9) <= '1';
+							num_of_step_x <= one(division_step downto 1) & jstk_pos_x(9 downto division_step);
 		
 							if data_sig < 0 then
 								
-								data_sig <= zero(to_integer(signed(num_of_step))-2 downto 0) & data_sig(23 downto to_integer(signed(num_of_step))-1);
-								
-								data_sig(23-to_integer(signed(num_of_step))) <= '0';
+								gen_loop3: for i in 1 to max_step_sx loop
 
-								data_sig(23) <= '1';
+									if i <= to_integer(signed(num_of_step_x)) then
+
+										data_sig <= '1' & data_sig(data_sig'high downto 1);
+
+									end if;
+
+								end loop gen_loop3;
+								
 
 							else
 
-								data_sig <= zero(to_integer(signed(num_of_step))-2 downto 0) & data_sig(23 downto to_integer(signed(num_of_step))-1);
+							gen_loop4: for i in 1 to max_step_sx loop
+
+								if i <= to_integer(signed(num_of_step_x)) then
+
+									data_sig <= '0' & data_sig(data_sig'high downto 1);
+
+								end if;
+
+							end loop gen_loop4;
 								
 							end if;
 		
@@ -157,6 +191,6 @@ begin
 				end if;
 			end if;
 
-	end process;
+		end process;
 
-end Behavioral;
+	end Behavioral;
