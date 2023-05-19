@@ -21,9 +21,13 @@ end edge_detector;
 
 architecture Behavioral of edge_detector is
 
-	signal input_signal_previous	: std_logic;
+	signal input_signal_previous	: STD_LOGIC;
+	signal edge_detected_reg 		: STD_LOGIC := '0';
+	
 
 begin
+
+	edge_detected <= edge_detected_reg;
 
 	process(clk, reset)
 	begin
@@ -39,18 +43,13 @@ begin
 			-- "trigger" the state in this one
 			input_signal_previous	<= input_signal;
 
-			-- Default edge_detected to 0, unless overridden later.
-			-- In this way edge_detected is 1 just in the clock cycles when the
-			-- below conditions are verified.
-			edge_detected			<= '0';
-
 			-- If TRIGGER_RISING is true, the last input signal was 0 and now is 1, or...
 			-- ..TRIGGER_RISING is false, the last input signal was 1 and now is 0, then...
 			if (TRIGGER_RISING and input_signal_previous = '0' and input_signal = '1') or
 				(not TRIGGER_RISING and input_signal_previous = '1' and input_signal = '0') then
 
 				-- ... set edge_detected to 1.
-				edge_detected	<= '1';
+				edge_detected_reg	<= not edge_detected_reg;
 
 			end if;
 
