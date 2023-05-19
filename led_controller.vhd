@@ -14,7 +14,7 @@ entity led_controller is
           );
 end led_controller;
 
-architecture Behavioral of led_controller is
+architecture Behavioral of led_controller   is
 
     signal color_vect : std_logic_vector(23 downto 0) := (others => '0') ;
     
