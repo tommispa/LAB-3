@@ -22,8 +22,6 @@ architecture Behavioral of mute is
 	-- registro per capire se dobbiamo applicare il filtro o meno
 	signal mute_enable_reg : STD_LOGIC := '0';
 
-	-- Vettore intermedio che utilizziamo per far passare i dati
-	-- signal data	:	STD_LOGIC_VECTOR(23 downto 0) := (others => '0');
 
 begin
 
@@ -103,16 +101,6 @@ begin
 
 			end if;
 							
-
-
-
-			--if s_axis_tvalid = '1' then
-			--	data  <= (not mute_enable) and s_axis_tdata; -- L'audio passa se mute_enable è 0
-			--	m_axis_tvalid <= '1';
-			--	if m_axis_tready = '1' then
-			--		m_axis_tdata <= data;
-			--	end if;
-
 	end process;
 
 end Behavioral;
