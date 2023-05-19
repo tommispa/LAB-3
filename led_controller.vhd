@@ -35,7 +35,7 @@ architecture Behavioral of led_controller   is
         
 
     
-        process (all)
+        process (mute_enable, filter_enable)
 
             begin
 
