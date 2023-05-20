@@ -18,28 +18,14 @@ end Mute_v2;
 
 architecture rtl of Mute_v2 is
 
-    -- Segnale intermedio per mute eneable: essendo quest'ultimo un impulso utilizziamo questo
-	-- registro per capire se dobbiamo applicare il filtro o meno
-    signal mute_enable_reg : STD_LOGIC_VECTOR(23 downto 0) := (others => '0'); 
-
 begin
 
+    -- Faccio diventare il blocco del mute un blocco trasparente
     m_axis_tlast <= s_axis_tlast;
     s_axis_tready <= m_axis_tready;
     m_axis_tvalid <= s_axis_tvalid;
 
-    process (mute_enable)
-
-    begin
+    -- Quando il segnale di mute è attivo assegno al master un vettore di zeri per mutare
+    m_axis_tdata <= (others => '0') when mute_enable = '1' else m_axis_tdata; 
         
-        if mute_enable = '1' then
-            mute_enable_reg <= not mute_enable_reg;
-        end if;
-
-        m_axis_tdata <= s_axis_tdata and mute_enable_reg;
-
-    end process;
-
-    
-
 end architecture;
