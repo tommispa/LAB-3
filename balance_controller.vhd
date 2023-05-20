@@ -1,196 +1,108 @@
 library IEEE;
-use IEEE.STD_LOGIC_1164.all;
-use IEEE.NUMERIC_STD.all;
-use IEEE.MATH_REAL.all;
+    use IEEE.STD_LOGIC_1164.ALL;
+    use IEEE.NUMERIC_STD.ALL;
+    
 
 
-entity balance_controller is
-
-	generic (
-		division_step	: integer RANGE 0 to 9 := 6				-- Numero n, l'amplification factor deve essere diviso per 2 ogni 2^n joystick units		
-	);
+entity Balance_controller is
+    generic(
+       N           : INTEGER := 6
+    );
     Port ( 
-         aclk           : in STD_LOGIC;
-         aresetn        : in STD_LOGIC;
+        clk             : IN STD_LOGIC;
+        resetn          : IN STD_LOGIC;
         
-		 m_axis_tlast	: out STD_LOGIC; 						-- Segnale che mi dice se sto ricevendo da canale di destra o di sinistra
-		 m_axis_tvalid	: out STD_LOGIC;
-		 m_axis_tdata	: out STD_LOGIC_VECTOR(23 downto 0);
-		 m_axis_tready	: in STD_LOGIC;
-		 
-		 s_axis_tlast 	: in STD_LOGIC; 						-- Segnale che arriva dall'IS_2, che mi dice se sto ricevendo left channel o rigth channel
-		 s_axis_tvalid	: in STD_LOGIC;
-		 s_axis_tdata	: in STD_LOGIC_VECTOR(23 downto 0);
-		 s_axis_tready	: out STD_LOGIC;
+        s_axis_tvalid   : IN STD_LOGIC;
+        s_axis_tdata    : IN STD_LOGIC_VECTOR(23 DOWNTO 0);
+        s_axis_tready   : OUT STD_LOGIC;
+        s_axis_tlast    : IN STD_LOGIC;
+    
+        m_axis_tvalid   : OUT STD_LOGIC;
+        m_axis_tdata    : OUT STD_LOGIC_VECTOR(23 DOWNTO 0);
+        m_axis_tready   : IN STD_LOGIC;
+        m_axis_tlast    : OUT STD_LOGIC;
+        
+        balance          : IN STD_LOGIC_VECTOR (9 DOWNTO 0)
+    );
 
-         balance        : in STD_LOGIC_VECTOR (9 downto 0));
-end balance_controller;
-
-architecture Behavioral of balance_controller is
-
-
-	signal 		jstk_pos_x 	: signed(9 downto 0)  := (others => '0');
-	signal		data_sig 	: signed(23 downto 0) := (others => '0');
-	signal		num_of_step_x	: signed(9 downto 0)  := (others => '0');
-	signal      zero        : signed(9 downto 0)  := (others => '0');
-	signal      one         : signed (9 downto 0) := (others => '1');
-	signal		mem			: std_logic_vector(23 downto 0) := (others => '0');
-	signal		mem_balance : std_logic_vector(9 downto 0) := (others => '0');
-	constant 	step_div 	: integer := 2**division_step;
-	constant    step_div2   : integer := 2**(division_step-1);
-	constant	max_step_sx : integer := 512/step_div;
-	constant	max_step_dx : integer := -512/step_div;
+end Balance_controller;
 
 
 
+architecture Behavioral of Balance_Controller is
 
+    ----------------------------------------- SIGNALS -------------------------------------------
+    
+    --- Internal signals needend for the multi clock loop back --- 
+	signal m_axis_tvalid_int	: std_logic;
+	signal s_axis_tready_int	: std_logic;
+	
+	--- Balance signals ---
+    constant SHIFT  :   INTEGER                                 := 2**(9-N); 
+    signal BALANCE_1  :   INTEGER RANGE -SHIFT TO SHIFT           := 0;
+    
+    ---------------------------------------------------------------------------------------------
+
+    
+    
 begin
 
-	mem <= s_axis_tdata;
-	mem_balance <= balance;
-	jstk_pos_x <= signed(mem_balance);
-	data_sig <= signed(mem);
-	
-	process (aclk, aresetn)
-	
-	
-		begin
+    -------------------------------------- DATA FLOW --------------------------------------------
+    
+    --- BALANCE signal equation: you will find the same equation presented in the "Volume_Controller" block. The following equation ---
+    --- is written in order to have every interval long as 2^(N), and the 0 value in between the two values -2^(N-1) and 2^(N-1).   ---
+    BALANCE_1             <=  to_integer(shift_right(unsigned(balance(9 downto 0))+2**(N-1), N)) - SHIFT;
 
-			if aresetn = '0' then
+    --- Multi clock loop back ---
+	s_axis_tready_int	<= m_axis_tready or not m_axis_tvalid_int;
+	m_axis_tvalid		<= m_axis_tvalid_int;
+	s_axis_tready		<= s_axis_tready_int;
+    
+    ---------------------------------------------------------------------------------------------
 
-				jstk_pos_x <= (others => '0');
-				data_sig <= (others => '0');
-		
-		
-				-- Resetto i segnali con cui gestisco la comunicazione fra i blocchi
-				s_axis_tready <= '0';
-		
-				m_axis_tlast <= '0';
-				m_axis_tvalid <= '0';
-				m_axis_tdata <= (others => '0'); 
+    -------------------------------------- PROCESS ----------------------------------------------
+
+	BALANCE_PRCSS : process(clk, resetn)
+	
+	begin
+	
+        --- Asyncronous Reset ---
+        if(resetn = '0')        then
+            m_axis_tvalid_int    <= '0';
+            m_axis_tlast         <= s_axis_tlast;
+            
+        elsif rising_edge(clk)  then
+                
+            --- Full/NOT_Empty logic ---          
+            if s_axis_tvalid = '1' then
+                m_axis_tvalid_int	<= '1';
+            elsif m_axis_tready = '1' then
+                m_axis_tvalid_int	<= '0';
+            end if;
+            
+            if s_axis_tvalid = '1' and s_axis_tready_int = '1' then
+                
+                --- L and R balance logic ---
+                if(s_axis_tlast = '1'  and BALANCE_1 <= -1)   then
+                    m_axis_tdata    <= std_logic_vector(shift_right(signed(s_axis_tdata), abs(BALANCE_1)));
+                    m_axis_tlast    <= '1';
+                    
+                elsif(s_axis_tlast = '0' and BALANCE_1 >= 1)  then
+                    m_axis_tdata    <= std_logic_vector(shift_right(signed(s_axis_tdata), abs(BALANCE_1)));
+                    m_axis_tlast    <= '0';
+                    
+                else
+                    m_axis_tdata    <= s_axis_tdata;
+                    m_axis_tlast    <= s_axis_tlast;
+                    
+                end if;
+                
+            end if;
+
+        end if;
 			
-			elsif rising_edge(aclk) then
+	end process;
+	
+    ---------------------------------------------------------------------------------------------
 
-				s_axis_tready <= '1';
-		
-				if s_axis_tvalid = '1' then
-		
-					-------------- dato sx --------------
-					if s_axis_tlast = '0' then
-		
-						if jstk_pos_x >= step_div2 then			-- se il joystick si muove verso dx devo abbassare il volume a sx
-		
-							
-							num_of_step_x <= zero(division_step downto 1) & jstk_pos_x(9 downto division_step);
-							
-							if data_sig < 0 then
-
-								gen_loop: for i in 1 to max_step_sx loop
-
-									if i <= to_integer(signed(num_of_step_x)) then
-
-										data_sig <= '1' & data_sig(data_sig'high downto 1);
-
-									end if;
-
-								end loop gen_loop;
-							 
-						
-							 
-							else
-							 
-
-							gen_loop2: for i in 1 to max_step_sx loop
-
-								if i <= to_integer(signed(num_of_step_x)) then
-
-									data_sig <= '0' & data_sig(data_sig'high downto 1);
-
-								end if;
-
-							end loop gen_loop2;
-						
-								
-							end if;
-		
-							if m_axis_tready = '1' then
-		
-								m_axis_tvalid <= '1';
-								m_axis_tlast <= '0';
-								m_axis_tdata <= std_logic_vector(data_sig(23 downto 0));
-							
-							end if;
-		
-						else
-							if m_axis_tready = '1' then
-								
-								m_axis_tvalid <= '1';
-								m_axis_tlast <= '0';
-								m_axis_tdata <= s_axis_tdata;
-							end if;
-						end if;
-		
-		
-						
-						
-					end if;
-		
-					-------------- dato dx --------------
-					if s_axis_tlast = '1' then
-		
-						if jstk_pos_x <= -step_div2 then
-							
-							num_of_step_x <= one(division_step downto 1) & jstk_pos_x(9 downto division_step);
-		
-							if data_sig < 0 then
-								
-								gen_loop3: for i in 1 to max_step_sx loop
-
-									if i <= to_integer(signed(num_of_step_x)) then
-
-										data_sig <= '1' & data_sig(data_sig'high downto 1);
-
-									end if;
-
-								end loop gen_loop3;
-								
-
-							else
-
-							gen_loop4: for i in 1 to max_step_sx loop
-
-								if i <= to_integer(signed(num_of_step_x)) then
-
-									data_sig <= '0' & data_sig(data_sig'high downto 1);
-
-								end if;
-
-							end loop gen_loop4;
-								
-							end if;
-		
-							if m_axis_tready = '1' then
-		
-								m_axis_tvalid <= '1';
-								m_axis_tlast <= '1';
-								m_axis_tdata <= std_logic_vector(data_sig(23 downto 0));
-							
-							end if;
-		
-						else 
-							if m_axis_tready = '1' then
-								
-								m_axis_tvalid <= '1';
-								m_axis_tlast <= '1';
-								m_axis_tdata <= s_axis_tdata;
-							end if;
-						end if;
-		
-					end if;
-		
-				end if;
-			end if;
-
-		end process;
-
-	end Behavioral;
+end Behavioral;
