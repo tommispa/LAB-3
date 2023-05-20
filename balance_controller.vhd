@@ -4,13 +4,13 @@ library IEEE;
     
 
 
-entity Balance_controller is
+entity balance_controller is
     generic(
        N           : INTEGER := 6
     );
     Port ( 
-        clk             : IN STD_LOGIC;
-        resetn          : IN STD_LOGIC;
+        aclk             : IN STD_LOGIC;
+        aresetn          : IN STD_LOGIC;
         
         s_axis_tvalid   : IN STD_LOGIC;
         s_axis_tdata    : IN STD_LOGIC_VECTOR(23 DOWNTO 0);
@@ -25,11 +25,11 @@ entity Balance_controller is
         balance          : IN STD_LOGIC_VECTOR (9 DOWNTO 0)
     );
 
-end Balance_controller;
+end balance_controller;
 
 
 
-architecture Behavioral of Balance_Controller is
+architecture Behavioral of balance_Controller is
 
     ----------------------------------------- SIGNALS -------------------------------------------
     
@@ -62,16 +62,16 @@ begin
 
     -------------------------------------- PROCESS ----------------------------------------------
 
-	BALANCE_PRCSS : process(clk, resetn)
+	BALANCE_PRCSS : process(aclk, aresetn)
 	
 	begin
 	
         --- Asyncronous Reset ---
-        if(resetn = '0')        then
+        if(aresetn = '0')        then
             m_axis_tvalid_int    <= '0';
             m_axis_tlast         <= s_axis_tlast;
             
-        elsif rising_edge(clk)  then
+        elsif rising_edge(aclk)  then
                 
             --- Full/NOT_Empty logic ---          
             if s_axis_tvalid = '1' then
