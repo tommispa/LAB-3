@@ -26,6 +26,6 @@ begin
     m_axis_tvalid <= s_axis_tvalid;
 
     -- Quando il segnale di mute è attivo assegno al master un vettore di zeri per mutare
-    m_axis_tdata <= (others => '0') when mute_enable = '1' else m_axis_tdata; 
+    m_axis_tdata <= (others => '0') when mute_enable = '1' else s_axis_tdata; 
         
 end architecture;
