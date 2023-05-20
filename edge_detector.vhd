@@ -22,7 +22,7 @@ end edge_detector;
 architecture Behavioral of edge_detector is
 
 	signal input_signal_previous	: STD_LOGIC;
-	signal edge_detected_reg 		: STD_LOGIC := '0';
+	signal edge_detected_reg 		: STD_LOGIC;
 	
 
 begin
@@ -34,7 +34,7 @@ begin
 		if reset = '1' then
 
 			input_signal_previous	<= '0';
-			edge_detected			<= '0';
+			edge_detected_reg		<= '0';
 
 		elsif rising_edge(clk) then
 
@@ -49,7 +49,7 @@ begin
 				(not TRIGGER_RISING and input_signal_previous = '1' and input_signal = '0') then
 
 				-- ... set edge_detected to 1.
-				edge_detected_reg	<= not edge_detected_reg;
+				edge_detected_reg	<= not(edge_detected_reg);
 
 			end if;
 
