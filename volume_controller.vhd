@@ -31,15 +31,16 @@ architecture Behavioral of volume_controller is
 	signal state_volume : state_volume_type;
 
 
-	signal		num_of_step_y		: 	signed(9 downto 0) := (others => '0');
+	signal		num_of_step_y		: 	integer := 0;
 	constant 	step_div 			: 	integer := 2**division_step;
-	constant    step_div2   		: 	integer := 2**(division_step-1);
-	signal		zero_vol			: 	signed(9 downto 0) := (others => '0');
-	signal      one_vol         	: 	signed(9 downto 0) := (others => '1');
+	constant    step_div2   		: 	integer := 2**(division_step-1) + 512;
+	constant	shift				:	integer := 512/step_div;
+	signal		zero_vol			: 	unsigned(9 downto 0) := (others => '0');
+	signal      one_vol         	: 	unsigned(9 downto 0) := (others => '1');
 	constant	max_step 			: 	integer := (512/step_div) - 1;
 	signal		data				: 	signed(23 downto 0) := (others => '0');
 	signal		s_axis_tdata_int	:	signed (23 downto 0) := (others => '0');
-	signal		volume_int			: 	signed (9 downto 0) := (others => '0');
+	signal		volume_int			: 	unsigned (9 downto 0) := (others => '0');
 	signal		t_last_reg			:	std_logic;
 	signal		mem_data			:	std_logic_vector (23 downto 0) := (others => '0');
 	signal		mem_volume			:	std_logic_vector (9 downto 0) := (others => '0');
@@ -49,7 +50,7 @@ begin
 	mem_data <= s_axis_tdata;
 	s_axis_tdata_int <= signed(mem_data);
 	mem_volume <= volume;
-	volume_int <= signed(mem_volume);
+	volume_int <= unsigned(mem_volume);
 
 	with state_volume select s_axis_tready <=
 		'1' when clipping,
@@ -99,7 +100,7 @@ begin
 							state_volume <= amplification;
 						
 
-						elsif volume_int < step_div2 then
+						elsif volume_int < step_div2-step_div then
 							state_volume <= attenuation;
 						
 						else
@@ -110,11 +111,11 @@ begin
 
 					when amplification =>
 							
-						num_of_step_y <= zero_vol(division_step downto 1) & volume_int(9 downto division_step);
+						num_of_step_y <= to_integer(shift_right(volume_int,division_step)) - shift ; --magari possiamo scriverlo solo una volta tra ampl e att
 
 						gen_loop: for i in 1 to max_step loop
 
-							if i <= to_integer(signed(num_of_step_y)) then
+							if i <= num_of_step_y then
 
 								s_axis_tdata_int <= s_axis_tdata_int(s_axis_tdata_int'high-1 downto 0) & '0';
 
@@ -127,13 +128,13 @@ begin
 					
 					when attenuation =>
 
-						num_of_step_y <= one_vol(division_step downto 1) & volume_int(9 downto division_step);
+						num_of_step_y <= to_integer(shift_right(volume_int,division_step)) - shift;
 							
 						if s_axis_tdata_int < 0 then
 
 							gen_loop2: for i in 1 to max_step loop
 
-								if i <= to_integer(signed(num_of_step_y)) then
+								if i <= num_of_step_y then
 
 									s_axis_tdata_int <= '1' & s_axis_tdata_int(s_axis_tdata_int'high downto 1);
 
@@ -146,7 +147,7 @@ begin
 							
 							gen_loop3: for i in 1 to max_step loop
 
-								if i <= to_integer(signed(num_of_step_y)) then
+								if i <= num_of_step_y then
 
 									s_axis_tdata_int <= '0' & s_axis_tdata_int(s_axis_tdata_int'high downto 1);
 
