@@ -24,7 +24,11 @@ entity dual_mooving_average is
            filter_enable    : in STD_LOGIC);
 end dual_mooving_average;
 
-architecture Behavioral of dual_mooving_average is
+architecture rtl of dual_mooving_average is
+
+-- Macchina a stati che ci permette di fare pipelining nelle operazioni di media
+type state_filter_type is (filter_choice, fetch, shift, sum, pull, pass);
+signal state_filter : state_filter_type;
 
 -- Questa costante mi serve per decidere di quanti bit fare il padding per fare la media.
 -- La funzione CEIL non servirebbe in quanto come integer avarage possono capitare solo
@@ -39,165 +43,178 @@ signal mem_sx : matrix := (others => (others => '0'));
 -- Memoria bidimensionale in cui inserisco gli ultimi AVARAGE campioni del canale di destra
 signal mem_dx : matrix := (others => (others => '0'));
 
-
 -- Vettore intermedio per fare la somma dei campione del canale di sinistra
 signal sum_vec_sx	: SIGNED(23 + bit_avarage downto 0) := (others => '0'); 
 -- Vettore intermedio per fare la somma dei campione del canale di destra
 signal sum_vec_dx	: SIGNED(23 + bit_avarage downto 0) := (others => '0'); 
 
--- Rendo il dato in ingresso un signed
-signal data_sign	: SIGNED(23 downto 0) := (others => '0');
-
--- Segnale intermedio per filter eneable: essendo quest'ultimo un impulso utilizziamo questo
--- registro per capire se dobbiamo applicare il filtro o meno
-signal filter_enable_reg : STD_LOGIC := '0';
-
-
+-- Registro che mi tiene traccia del valore di s_axis_tlast
+signal t_last_reg 	: STD_LOGIC;	
 
 begin
 
-data_sign <= SIGNED(s_axis_tdata);
 
-process (aclk, aresetn)
+    with state_filter select s_axis_tready <=
+        '0' when filter_choice,
+        '1' when fetch,
+        '0' when shift,
+        '0' when sum,
+        '0' when pull,
+        '1' when pass;
 
-begin
+    with state_filter select m_axis_tvalid <=
+        '0' when filter_choice,
+        '0' when fetch,
+        '0' when shift,
+        '0' when sum,
+        '1' when pull,
+        '1' when pass;
 
-	-- Con filter_enable_reg capisco quando devo applicare il filtro, in quanto in  
-	-- uscita dall'edge_detector ho un impulso e non un segnale costante
-	if filter_enable = '1' then	
-		filter_enable_reg <= (not filter_enable_reg);
-	end if;
-
-	if aresetn = '0' then
-		
-		mem_sx <= (others => (others => '0'));
+    process (aclk, aresetn)
+    
+    begin
+        
+        if aresetn = '0' then
+            
+        mem_sx <= (others => (others => '0'));
 		mem_dx <= (others => (others => '0'));
 
 		sum_vec_sx <= (others => '0');
 		sum_vec_dx <= (others => '0');
 
-		data_sign <= (others => '0');
-		
-		filter_enable_reg <= '0';
-		
-		-- Resetto i segnali con cui gestisco la comunicazione fra i blocchi
-		s_axis_tready <= '0';
+        state_filter <= filter_choice;
 
-		m_axis_tlast <= '0';
-		m_axis_tvalid <= '0';
-		m_axis_tdata <= (others => '0'); 
-		
+        elsif rising_edge(aclk) then
+            
+            case state_filter is
 
-	elsif rising_edge(aclk) then
-		
-	-- Se ho il filtro attivo procedo con questa data flow
-		if filter_enable_reg = '1' then
+                when filter_choice =>
 
-		s_axis_tready <= '1';
-		
-			if s_axis_tvalid = '1' then
+                    if filter_enable = '1' then
+                        state_filter <= fetch;
+                    else
+                        state_filter <= pass;
+                    end if;
+                        
 
------------------------------ Memoria sinistra ---------------------------------------------
-				if s_axis_tlast = '0' then
-				-- Assegno al primo elemento della memoria sinistra il dato
-				mem_sx(0) <= data_sign ;
+                when fetch =>
+                
+                    if s_axis_tvalid = '1' then
 
-				-- Faccio lo shift di ogni elemento con quello precedente
-					for i in 1 to AVARAGE - 1 loop
+                        -- Assegno al primo elemento della memoria sinistra il dato
+						-- Tengo traccia di s_axis_tlast
+                        if s_axis_tlast = '0' then
+							t_last_reg <= s_axis_tlast;
+                            mem_sx(0) <= SIGNED(s_axis_tdata);
+                        end if;
 
-					mem_sx(i) <= mem_sx(i-1);
+                        -- Assegno al primo elemento della memoria destra il dato
+                        -- Tengo traccia di s_axis_tlast
+						if s_axis_tlast = '1' then
+							t_last_reg <= s_axis_tlast;
+                            mem_dx(0)<= SIGNED(s_axis_tdata);
+                        end if;
+                        
+                        -- Vado nello stato di somma
+                        state_filter <= shift;
+
+                    end if;
+                
+                when shift =>
+                    
+                    if t_last_reg = '0' then
+                        
+                        -- Faccio lo shift di ogni elemento con quello precedente
+					    for i in 1 to AVARAGE - 1 loop
+
+                        mem_sx(i) <= mem_sx(i-1);
+                        
+                        end loop;
+                    
+                    end if;
+
+                    if t_last_reg = '1' then
+                        
+                        -- Faccio lo shift di ogni elemento con quello precedente
+				        for j in 1 to AVARAGE - 1 loop
 					
-					end loop;
-				
-				-- Faccio la somma di tutti gli elementi della memoria sinistra
-					for i in 0 to AVARAGE - 1 loop
+					    mem_dx(j) <= mem_dx(j-1);
 
-					sum_vec_sx <= sum_vec_sx + mem_sx(i);
+				        end loop;				
 
-					end loop;
-				
-					if m_axis_tready = '1' then
+                    end if;
+                    
+					-- Vado nello stato di somma
+                    state_filter <= sum;
 
-					m_axis_tvalid <= '1';
-					m_axis_tlast <= '0';
-					m_axis_tdata <= std_logic_vector(sum_vec_sx(23 + bit_avarage downto bit_avarage));
-				
-					end if;
+                when sum =>
 
-					sum_vec_sx <= (others => '0');
+                    if t_last_reg = '0' then
+                        
+                        -- Per aggiornare il vettore somma mi basta sommare l'ultimo
+                        -- sample acquisito e sottrarre l'ultimo sample della memoria
+                        sum_vec_sx <= sum_vec_sx + mem_sx(0) - mem_sx(AVARAGE - 1);
+
+                    end if;
+                        
+                    if t_last_reg = '1' then
+                            
+                        -- Per aggiornare il vettore somma mi basta sommare l'ultimo
+                        -- sample acquisito e sottrarre l'ultimo sample della memoria
+                        sum_vec_dx <= sum_vec_dx + mem_dx(0) - mem_dx(AVARAGE - 1);
+
+                    end if;
 					
------------------------------ Memoria destra ---------------------------------------------
-				else
-				-- Assegno al primo elemento della memoria destra il dato
-				mem_dx(0)<= data_sign;
+					-- Vado nello stato in cui faccio passare il dato sul master
+					state_filter <= pull;
+                
+                when pull =>
+                    
+                    if m_axis_tready = '1' then
+                            
+                        if t_last_reg = '0' then
+							
+                            m_axis_tlast <= t_last_reg;
+					        m_axis_tdata <= std_logic_vector(sum_vec_sx(23 + bit_avarage downto bit_avarage));
 
-				-- Faccio lo shift di ogni elemento con quello precedente
-				for j in 1 to AVARAGE - 1 loop
-					
-					mem_dx(j) <= mem_dx(j-1);
+                        end if;
+                        
+                        if t_last_reg = '1' then
+                                
+                            m_axis_tlast <= t_last_reg;
+						    m_axis_tdata <= std_logic_vector(sum_vec_dx(23 + bit_avarage downto bit_avarage)); 
 
-				end loop;				
-				
-				-- Faccio la somma di tutti gli elementi della memoria
-				for j in 0 to AVARAGE - 1 loop
-					
-					sum_vec_dx <= sum_vec_dx + mem_dx(j);
+                        end if;
+                            
+                        state_filter <= filter_choice;
 
-				end loop;
-				
-				if m_axis_tready = '1' then
+                    end if;
+                    
+                when pass =>
+                    
+                    if s_axis_tvalid = '1' and m_axis_tready = '1' then
+                        
+                        if s_axis_tlast = '0' then
+                            
+                            m_axis_tlast <= '0';
+					        m_axis_tdata <= s_axis_tdata;
 
-						m_axis_tvalid <= '1';
-						m_axis_tlast <= '1';
-						m_axis_tdata <= std_logic_vector(sum_vec_dx(23 + bit_avarage downto bit_avarage)); 
-				end if;
+                        end if;
 
-				sum_vec_dx <= (others => '0');
+                        if s_axis_tlast = '1' then
+                            
+                            m_axis_tlast <= '1';
+					        m_axis_tdata <= s_axis_tdata;
 
-				end if;
-				
-			end if;
-	-- Se il filtro non è attivo procedo con questo data flow
-		else
-		
-		s_axis_tready <= '1';
+                        end if;
 
-		if s_axis_tvalid = '1' then
-			
-			-- Caso in cui ricevo un dato del canale di sinistra
-			if s_axis_tlast = '0' then
-				
-				if m_axis_tready = '1' then
-					
-					m_axis_tvalid <= '1';
-					m_axis_tlast <= '0';
-					m_axis_tdata <= s_axis_tdata;
+                        state_filter <= filter_choice;
 
-				end if;
-			
-			-- Caso in cui ricevo un dato dal canale di destra
-			else
-				
-				if m_axis_tready = '1' then
-					
-					m_axis_tvalid <= '1';
-					m_axis_tlast <= '1';
-					m_axis_tdata <= s_axis_tdata;
+                    end if;
+            
+            end case;
 
-				end if;
+        end if;
+    end process;
 
-			end if;
-
-		end if;
-		
-
-	end if;
-
-end if;
-	
-
-end process;
-	
-
-
-end Behavioral;
+end architecture;

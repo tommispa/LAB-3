@@ -61,7 +61,7 @@ begin
                 
                 -- Resetto i segnali con cui gestisco la comunicazione fra i blocchi
 
-                s_axis_ready <= '0';
+                s_axis_tready <= '0';
                 m_axis_tlast <= '0';
                 m_axis_tvalid <= '0';
                 m_axis_tdata <= (others => '0');
@@ -104,7 +104,7 @@ begin
 
                             end if;
 
-                            if m_axis tready = '1' then
+                            if m_axis_tready = '1' then
 
                                 m_axis_tvalid <= '1';
                                 m_axis_tlast <= '0';
@@ -157,7 +157,7 @@ begin
 
                             end if;
 
-                            if m_axis tready = '1' then
+                            if m_axis_tready = '1' then
 
                                 m_axis_tvalid <= '1';
                                 m_axis_tlast <= '0';
@@ -178,5 +178,6 @@ begin
                     end if;
 				end if;
 			end if;
-		end process;
+		end if;
+	end process;
 end Behavioral;
