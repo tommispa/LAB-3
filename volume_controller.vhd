@@ -96,9 +96,9 @@ begin
 							
 							end if;
 
-							if data_vol >= 512 then
+							if data_vol >= 511 then
 
-								data_vol <= to_signed(512,24);
+								data_vol <= to_signed(511,24);
 
 							end if;
 
@@ -111,7 +111,7 @@ begin
 							if m_axis_tready = '1' then
 		
 								m_axis_tvalid <= '1';
-								m_axis_tlast <= '0';
+								m_axis_tlast <= s_axis_tlast;
 								m_axis_tdata <= std_logic_vector(data_vol(23 downto 0));
 							
 							end if;
@@ -147,9 +147,9 @@ begin
 							end loop gen_loop3;						
 							end if;
 
-							if data_vol >= 512 then
+							if data_vol >= 511 then
 
-								data_vol <= to_signed(512,24);
+								data_vol <= to_signed(511,24);
 
 							end if;
 
@@ -162,7 +162,7 @@ begin
 							if m_axis_tready = '1' then
 		
 								m_axis_tvalid <= '1';
-								m_axis_tlast <= '0';
+								m_axis_tlast <= s_axis_tlast;
 								m_axis_tdata <= std_logic_vector(data_vol(23 downto 0));
 							
 							end if;
