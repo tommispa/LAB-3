@@ -27,7 +27,7 @@ end volume_controller;
 
 architecture Behavioral of volume_controller is
 
-	type state_volume_type is (fetch, clipping, control, amplification, attenuation, send, pass);
+	type state_volume_type is (fetch, control, amplification, attenuation, send);
 	signal state_volume : state_volume_type;
 
 
@@ -48,21 +48,21 @@ begin
 
 	with state_volume select s_axis_tready <=
 		'1' when fetch,
-		'0' when clipping,
+		--'0' when clipping,
 		'0' when control,
 		'0' when amplification,
 		'0' when attenuation,
-		'0' when send,
-		m_axis_tready when pass;
+		'0' when send;
+		--m_axis_tready when pass;
 
 	with state_volume select m_axis_tvalid <=
 		'0' when fetch,
-		'0' when clipping,
+		--'0' when clipping,
 		'0' when control,
 		'0' when amplification,
 		'0' when attenuation,
-		'1' when send,
-		s_axis_tvalid when pass;
+		'1' when send;
+		--s_axis_tvalid when pass;
 		
 	process (aclk, aresetn)
 
@@ -86,16 +86,16 @@ begin
 							t_last_reg <= s_axis_tlast;
 							mem_volume <= UNSIGNED(volume);
 
-							state_volume <= clipping;
+							state_volume <= control;
 						end if;
 						
 				
-					when clipping =>
+					--when clipping =>
 
 							-- Faccio lo shift per evitare la saturazione
-							mem_data <= shift_right(mem_data,6);
+							--mem_data <= shift_right(mem_data,6);
 
-							state_volume <= control;
+							--state_volume <= control;
 						
 
 					when control =>
@@ -108,7 +108,7 @@ begin
 							state_volume <= attenuation;
 						
 						else
-							state_volume <= pass;
+							state_volume <= send;
 						
 						end if;
 
@@ -174,12 +174,12 @@ begin
 						end if;
 
 
-					when pass =>
+					--when pass =>
 									
-						m_axis_tlast <= s_axis_tlast;
-						m_axis_tdata <= s_axis_tdata;
+						--m_axis_tlast <= t_last_;
+						--m_axis_tdata <= std_logic_vector(mem_data(23 downto 0));
 
-						state_volume <= fetch;
+						--state_volume <= fetch;
 
 				end case;
 			end if;			
