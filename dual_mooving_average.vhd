@@ -21,23 +21,23 @@ entity dual_mooving_average is
 		   s_axis_tready	: out STD_LOGIC;
 
            
-           filter_enable    : in STD_LOGIC);
+           filter_enable    : in STD_LOGIC); -- E' stato modificato l'edge_detector
 end dual_mooving_average;
 
 architecture rtl of dual_mooving_average is
 
 -- Macchina a stati con sei stati. 
--- Filter_choiche: controlla se il filtro è attivo o meno
+-- Filter_choiche: controlla se il filtro e' attivo o meno
 -- Fetch: prende il dato in ingresso e lo carica su una memoria (se il filtro è attivo)
 -- Shift: faccio shiftare di una posizione tutti i dati sulla memoria
 -- Pull: fa uscire il dato dal bus dati del master
--- Pass: fa uscire direttamente il dato dal bus dati del master se il filtro non è attivo
+-- Pass: fa uscire direttamente il dato dal bus dati del master se il filtro non e' attivo
 type state_filter_type is (filter_choice, fetch, shift, sum, pull, pass);
 signal state_filter : state_filter_type;
 
 -- Questa costante mi serve per decidere di quanti bit fare il padding per fare la media.
--- La funzione CEIL non servirebbe in quanto come integer avarage possono capitare solo
--- potenze di due
+-- La funzione CEIL non servirebbe in quanto AVERAGE puo' essere solamente una potenza
+-- di due
 constant bit_avarage : POSITIVE := POSITIVE(CEIL(log2(REAL(AVERAGE))));
 
 -- Matrice per definire una memoria bidimensionale
@@ -58,7 +58,8 @@ signal t_last_reg 	: STD_LOGIC;
 
 begin
 
-
+    -- Alzo il segnale s_axis_tready solamente quando devo prendere il dato dall'IS_2,
+    -- mentre rendo il blocco trasparente quando il filtro non e' attivo
     with state_filter select s_axis_tready <=
         '0' when filter_choice,
         '1' when fetch,
@@ -67,6 +68,8 @@ begin
         '0' when pull,
 		m_axis_tready when pass;
 
+    -- Alzo il segnale m_axis_tvalid solamente quando devo mandare il dato al blocco 
+    -- successivo, mentre rendo il blocco trasparente quando il filtro non e' attivo
     with state_filter select m_axis_tvalid <=
         '0' when filter_choice,
         '0' when fetch,
@@ -79,6 +82,7 @@ begin
     
     begin
         
+        -- Se si abbassa il segnale di reset inizializzo tutti i registri
         if aresetn = '0' then
             
         mem_sx <= (others => (others => '0'));
@@ -106,21 +110,20 @@ begin
                 
                     if s_axis_tvalid = '1' then
 
-                        -- Assegno al primo elemento della memoria sinistra il dato
-						-- Tengo traccia di s_axis_tlast
+                        -- Assegno al primo elemento della memoria sinistra 
+						-- il dato e tengo traccia di s_axis_tlast
                         if s_axis_tlast = '0' then
 							t_last_reg <= s_axis_tlast;
                             mem_sx(0) <= SIGNED(s_axis_tdata);
                         end if;
 
-                        -- Assegno al primo elemento della memoria destra il dato
-                        -- Tengo traccia di s_axis_tlast
+                        -- Assegno al primo elemento della memoria destra 
+                        -- il dato e tengo traccia di s_axis_tlast
 						if s_axis_tlast = '1' then
 							t_last_reg <= s_axis_tlast;
                             mem_dx(0)<= SIGNED(s_axis_tdata);
                         end if;
                         
-                        -- Vado nello stato di somma
                         state_filter <= shift;
 
                     end if;
@@ -129,7 +132,7 @@ begin
                     
                     if t_last_reg = '0' then
                         
-                        -- Faccio lo shift di ogni elemento con quello precedente
+                        -- Faccio lo shift della memoria di sinistra
 					    for i in 1 to AVERAGE - 1 loop
 
                         mem_sx(i) <= mem_sx(i-1);
@@ -140,7 +143,7 @@ begin
 
                     if t_last_reg = '1' then
                         
-                        -- Faccio lo shift di ogni elemento con quello precedente
+                        -- Faccio lo shift della memoria di destra
 				        for j in 1 to AVERAGE - 1 loop
 					
 					    mem_dx(j) <= mem_dx(j-1);
@@ -149,7 +152,6 @@ begin
 
                     end if;
                     
-					-- Vado nello stato di somma
                     state_filter <= sum;
 
                 when sum =>
@@ -170,7 +172,6 @@ begin
 
                     end if;
 					
-					-- Vado nello stato in cui faccio passare il dato sul master
 					state_filter <= pull;
                 
                 when pull =>
@@ -179,13 +180,15 @@ begin
                             
                         if t_last_reg = '0' then
 							
+                            -- Mando in uscita solamente i 24 bit più significativi, ed in questo modo faccio la media
                             m_axis_tlast <= t_last_reg;
 					        m_axis_tdata <= std_logic_vector(sum_vec_sx(23 + bit_avarage downto bit_avarage));
 
                         end if;
                         
                         if t_last_reg = '1' then
-                                
+                            
+                            -- Mando in uscita solamente i 24 bit più significativi, ed in questo modo faccio la media
                             m_axis_tlast <= t_last_reg;
 						    m_axis_tdata <= std_logic_vector(sum_vec_dx(23 + bit_avarage downto bit_avarage)); 
 
@@ -197,6 +200,7 @@ begin
                     
                 when pass =>
                     
+                    -- Faccio passare direttamente il tlast e il tdata
 					m_axis_tlast <= s_axis_tlast;
 					m_axis_tdata <= s_axis_tdata;
 
