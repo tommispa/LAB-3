@@ -74,12 +74,8 @@ begin
 
 			if aresetn = '0' then
 		
-				-- Resetto i segnali con cui gestisco la comunicazione fra i blocchi
-				s_axis_tready <= '0';
-		
-				m_axis_tlast <= '0';
-				m_axis_tvalid <= '0';
 				m_axis_tdata <= (others => '0'); 
+				state_volume <= clipping;
 			
 			elsif rising_edge(aclk) then
 
