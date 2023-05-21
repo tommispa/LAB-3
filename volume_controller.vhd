@@ -80,7 +80,7 @@ begin
 			elsif rising_edge(aclk) then
 
 				case state_volume is
-
+				
 					when clipping =>
 
 						if s_axis_tvalid = '1' then
@@ -110,8 +110,8 @@ begin
 
 					when amplification =>
 							
-						num_of_step_y <= zero_vol(division_step downto 1) & volume_int(9 downto division_step);													
-																									
+						num_of_step_y <= zero_vol(division_step downto 1) & volume_int(9 downto division_step);
+
 						gen_loop: for i in 1 to max_step loop
 
 							if i <= to_integer(signed(num_of_step_y)) then
@@ -170,14 +170,11 @@ begin
 
 
 					when pass =>
-						if m_axis_tready = '1' then
 									
-							m_axis_tlast <= s_axis_tlast;
-							m_axis_tdata <= s_axis_tdata;
+						m_axis_tlast <= s_axis_tlast;
+						m_axis_tdata <= s_axis_tdata;
 
-						end if;
 						state_volume <= clipping;
-
 
 				end case;
 			end if;			
