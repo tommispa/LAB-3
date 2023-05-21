@@ -27,20 +27,42 @@ end volume_controller;
 
 architecture Behavioral of volume_controller is
 
+	type state_volume_type is (clipping, control, amplification, attenuation, send, pass);
+	signal state_volume : state_volume_type;
 
-	signal		num_of_step_y	: signed(9 downto 0) := (others => '0');
-	constant 	step_div 	: integer := 2**division_step;
-	constant    step_div2   : integer := 2**(division_step-1);
-	signal		zero_vol		: signed(9 downto 0) := (others => '0');
-	signal      one_vol         : signed(9 downto 0) := (others => '1');
-	constant	max_step : integer := (512/step_div) - 1;
-	signal		data	: signed(23 downto 0) := (others => '0');
-	signal		s_axis_tdata_int	:	signed (23 downto 0) := signed(s_axis_tdata);
-	signal		volume_int		: signed (9 downto 0) := signed(volume);
+
+	signal		num_of_step_y		: 	signed(9 downto 0) := (others => '0');
+	constant 	step_div 			: 	integer := 2**division_step;
+	constant    step_div2   		: 	integer := 2**(division_step-1);
+	signal		zero_vol			: 	signed(9 downto 0) := (others => '0');
+	signal      one_vol         	: 	signed(9 downto 0) := (others => '1');
+	constant	max_step 			: 	integer := (512/step_div) - 1;
+	signal		data				: 	signed(23 downto 0) := (others => '0');
+	signal		s_axis_tdata_int	:	signed (23 downto 0) := (others => '0');
+	signal		volume_int			: 	signed (9 downto 0) := (others => '0');
+	signal		t_last_reg			:	std_logic;
 
 begin
 
-	
+	s_axis_tdata_int <= signed(s_axis_tdata);
+	volume_int <= signed(volume);
+
+	with state_volume select s_axis_tready <=
+		'1' when clipping,
+		'0' when control,
+		'0' when amplification,
+		'0' when attenuation,
+		'0' when send,
+		m_axis_tready when pass;
+
+	with state_volume select m_axis_tvalid <=
+		'0' when clipping,
+		'0' when control,
+		'0' when amplification,
+		'0' when attenuation,
+		'1' when send,
+		s_axis_tvalid when pass;
+		
 	process (aclk, aresetn)
 
 	
@@ -57,16 +79,39 @@ begin
 			
 			elsif rising_edge(aclk) then
 
-				s_axis_tready <= '1';
-		
-				if s_axis_tvalid = '1' then
+				case state_volume is
 
-					data <= shift_right(s_axis_tdata_int,6);
-		
-					if volume_int >= step_div2 then			-- se il joystick si muove verso l'alto, il volume deve aumentare
-									
+					when clipping =>
+
+						if s_axis_tvalid = '1' then
+
+							data <= shift_right(s_axis_tdata_int,6);
+
+							t_last_reg <= s_axis_tlast;
+
+							state_volume <= control;
+						
+						end if;
+
+
+					when control =>
+						if volume_int >= step_div2 then
+							state_volume <= amplification;
+						
+
+						elsif volume_int < step_div2 then
+							state_volume <= attenuation;
+						
+						else
+							state_volume <= pass;
+						
+						end if;
+
+
+					when amplification =>
+							
 						num_of_step_y <= zero_vol(division_step downto 1) & volume_int(9 downto division_step);													
-																								
+																									
 						gen_loop: for i in 1 to max_step loop
 
 							if i <= to_integer(signed(num_of_step_y)) then
@@ -76,21 +121,12 @@ begin
 							end if;
 
 						end loop gen_loop;
-						
-						
-						if m_axis_tready = '1' then
-							
-							m_axis_tvalid <= '1';
-							m_axis_tlast <= s_axis_tlast;
-							m_axis_tdata <= std_logic_vector(s_axis_tdata_int(23 downto 0));
-							
-						end if;
-						
 
-					elsif volume_int < step_div2 then			-- se il joystick si muove verso il basso, il volume deve diminuire
-							
+					
+					when attenuation =>
+
 						num_of_step_y <= one_vol(division_step downto 1) & volume_int(9 downto division_step);
-						
+							
 						if s_axis_tdata_int < 0 then
 
 							gen_loop2: for i in 1 to max_step loop
@@ -117,30 +153,24 @@ begin
 							end loop gen_loop3;						
 						
 						end if;
-		
-						if m_axis_tready = '1' then
-	
-							m_axis_tvalid <= '1';
-							m_axis_tlast <= s_axis_tlast;
-							m_axis_tdata <= std_logic_vector(s_axis_tdata_int(23 downto 0));
-						
-						end if;
-					
 
-					else
-						
-						if m_axis_tready = '1' then
-									
-							m_axis_tvalid <= '1';
-							m_axis_tlast <= s_axis_tlast;
-							m_axis_tdata <= s_axis_tdata;
+						when send =>
+							if m_axis_tready = '1' then
+								
+								m_axis_tlast <= t_last_reg;
+								m_axis_tdata <= std_logic_vector(s_axis_tdata_int(23 downto 0));
+								
+							end if;
 
-						end if;
+						when pass =>
+							if m_axis_tready = '1' then
+										
+								m_axis_tlast <= s_axis_tlast;
+								m_axis_tdata <= s_axis_tdata;
 
-					end if;
-		
-				end if;
-			end if;
+							end if;
+				end case;
+			end if;			
 	end process;
 
 end Behavioral;
