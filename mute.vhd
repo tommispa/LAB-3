@@ -13,7 +13,7 @@ entity mute is
 		s_axis_tdata	: in STD_LOGIC_VECTOR(23 downto 0);
 		s_axis_tready	: out STD_LOGIC;
 
-        mute_enable     : in STD_LOGIC);
+        mute_enable     : in STD_LOGIC); -- E' stato modificato l'edge_detector
 end mute;
 
 architecture rtl of mute is
