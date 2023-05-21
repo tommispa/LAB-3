@@ -16,93 +16,16 @@ entity mute is
         mute_enable     : in STD_LOGIC);
 end mute;
 
-architecture Behavioral of mute is
-
-	-- Segnale intermedio per mute eneable: essendo quest'ultimo un impulso utilizziamo questo
-	-- registro per capire se dobbiamo applicare il filtro o meno
-	signal mute_enable_reg : STD_LOGIC := '0';
-
+architecture rtl of mute is
 
 begin
 
-	process(m_axis_tready,s_axis_tlast,s_axis_tvalid,s_axis_tdata,mute_enable)
-		
-		begin
-			
-			-- Con mute_enable_reg capisco quando devo applicare il filtro, in quanto in  
-			-- uscita dall'edge_detector ho un impulso e non un segnale costante
-			if mute_enable = '1' then
-				mute_enable_reg <= not mute_enable_reg;
-			end if;
+    -- Faccio diventare il blocco del mute un blocco trasparente
+    m_axis_tlast <= s_axis_tlast;
+    s_axis_tready <= m_axis_tready;
+    m_axis_tvalid <= s_axis_tvalid;
 
-			-- Caso in cui ho il filtro attivo
-			if mute_enable_reg = '1' then
-				
-				s_axis_tready <= '1';
-
-				if s_axis_tvalid = '1' then
-					
-					-- Muto il canale sinistro dell'audio
-					if s_axis_tlast = '0' then
-						
-						if m_axis_tready = '1' then
-							
-							m_axis_tvalid <= '1';
-							m_axis_tlast <= '0';
-							m_axis_tdata <= (others => '0');
-
-						end if;
-
-					-- Muto il canale destro dell'audio
-					else
-						
-						if m_axis_tready = '1' then
-							
-							m_axis_tvalid <= '1';
-							m_axis_tlast <=  '1';
-							m_axis_tdata <= (others => '0');
-
-						end if;
-
-					end if;
-
-				end if;
-			
-			-- Caso in cui non ho il filtro attivo
-			else
-				
-				s_axis_tready <= '1';
-
-				if s_axis_tvalid = '1' then
-					
-					-- Faccio passare i dati sul canale sinistro dell'audio
-					if s_axis_tlast = '0' then
-						
-						if m_axis_tready = '1' then
-							
-							m_axis_tvalid <= '1';
-							m_axis_tlast <= '0';
-							m_axis_tdata <= s_axis_tdata;
-
-						end if;
-
-					-- Faccio passare i dati sul canale destro dell'audio
-					else
-						
-						if m_axis_tready = '1' then
-							
-							m_axis_tvalid <= '1';
-							m_axis_tlast <=  '1';
-							m_axis_tdata <= s_axis_tdata;
-
-						end if;
-					end if;
-				end if;
-
-			end if;
-							
-	end process;
-
-end Behavioral;
-
-
+    -- Quando il segnale di mute è attivo assegno al master un vettore di zeri per mutare
+    m_axis_tdata <= (others => '0') when mute_enable = '1' else s_axis_tdata; 
+        
+end architecture;
