@@ -41,11 +41,15 @@ architecture Behavioral of volume_controller is
 	signal		s_axis_tdata_int	:	signed (23 downto 0) := (others => '0');
 	signal		volume_int			: 	signed (9 downto 0) := (others => '0');
 	signal		t_last_reg			:	std_logic;
+	signal		mem_data			:	std_logic_vector (23 downto 0) := (others => '0');
+	signal		mem_volume			:	std_logic_vector (9 downto 0) := (others => '0');
 
 begin
 
-	s_axis_tdata_int <= signed(s_axis_tdata);
-	volume_int <= signed(volume);
+	mem_data <= s_axis_tdata;
+	s_axis_tdata_int <= signed(mem_data);
+	mem_volume <= volume;
+	volume_int <= signed(mem_volume);
 
 	with state_volume select s_axis_tready <=
 		'1' when clipping,
@@ -122,6 +126,8 @@ begin
 
 						end loop gen_loop;
 
+						state_volume <= send;
+
 					
 					when attenuation =>
 
@@ -154,21 +160,29 @@ begin
 						
 						end if;
 
-						when send =>
-							if m_axis_tready = '1' then
-								
-								m_axis_tlast <= t_last_reg;
-								m_axis_tdata <= std_logic_vector(s_axis_tdata_int(23 downto 0));
-								
-							end if;
+						state_volume <= send;
 
-						when pass =>
-							if m_axis_tready = '1' then
-										
-								m_axis_tlast <= s_axis_tlast;
-								m_axis_tdata <= s_axis_tdata;
 
-							end if;
+					when send =>
+						if m_axis_tready = '1' then
+							
+							m_axis_tlast <= t_last_reg;
+							m_axis_tdata <= std_logic_vector(s_axis_tdata_int(23 downto 0));
+								
+						end if;
+						state_volume <= clipping;
+
+
+					when pass =>
+						if m_axis_tready = '1' then
+									
+							m_axis_tlast <= s_axis_tlast;
+							m_axis_tdata <= s_axis_tdata;
+
+						end if;
+						state_volume <= clipping;
+
+
 				end case;
 			end if;			
 	end process;
