@@ -60,7 +60,7 @@ begin
         '0' when shift,
         '0' when sum,
         '0' when pull,
-        '1' when pass;
+		m_axis_tready when pass;
 
     with state_filter select m_axis_tvalid <=
         '0' when filter_choice,
@@ -68,7 +68,7 @@ begin
         '0' when shift,
         '0' when sum,
         '1' when pull,
-        '1' when pass;
+		s_axis_tvalid when pass;
 
     process (aclk, aresetn)
     
@@ -192,25 +192,12 @@ begin
                     
                 when pass =>
                     
-                    if s_axis_tvalid = '1' and m_axis_tready = '1' then
-                        
-                        if s_axis_tlast = '0' then
-                            
-                            m_axis_tlast <= '0';
-					        m_axis_tdata <= s_axis_tdata;
+					m_axis_tlast <= s_axis_tlast;
+					m_axis_tdata <= s_axis_tdata;
 
-                        end if;
+                    state_filter <= filter_choice;
 
-                        if s_axis_tlast = '1' then
-                            
-                            m_axis_tlast <= '1';
-					        m_axis_tdata <= s_axis_tdata;
 
-                        end if;
-
-                        state_filter <= filter_choice;
-
-                    end if;
             
             end case;
 
