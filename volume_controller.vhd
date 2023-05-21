@@ -27,7 +27,7 @@ end volume_controller;
 
 architecture Behavioral of volume_controller is
 
-	type state_volume_type is (clipping, control, amplification, attenuation, send, pass);
+	type state_volume_type is (fetch, clipping, control, amplification, attenuation, send, pass);
 	signal state_volume : state_volume_type;
 
 
@@ -38,22 +38,17 @@ architecture Behavioral of volume_controller is
 	signal		zero_vol			: 	unsigned(9 downto 0) := (others => '0');
 	signal      one_vol         	: 	unsigned(9 downto 0) := (others => '1');
 	constant	max_step 			: 	integer := (512/step_div) - 1;
-	signal		data				: 	signed(23 downto 0) := (others => '0');
-	signal		s_axis_tdata_int	:	signed (23 downto 0) := (others => '0');
-	signal		volume_int			: 	unsigned (9 downto 0) := (others => '0');
+
+	-- Registri in cui salvo i vari segnali
 	signal		t_last_reg			:	std_logic;
-	signal		mem_data			:	std_logic_vector (23 downto 0) := (others => '0');
-	signal		mem_volume			:	std_logic_vector (9 downto 0) := (others => '0');
+	signal		mem_data			:	signed(23 downto 0) := (others => '0');
+	signal		mem_volume			:	unsigned(9 downto 0) := (others => '0');
 
 begin
 
-	mem_data <= s_axis_tdata;
-	s_axis_tdata_int <= signed(mem_data);
-	mem_volume <= volume;
-	volume_int <= unsigned(mem_volume);
-
 	with state_volume select s_axis_tready <=
-		'1' when clipping,
+		'1' when fetch,
+		'0' when clipping,
 		'0' when control,
 		'0' when amplification,
 		'0' when attenuation,
@@ -61,6 +56,7 @@ begin
 		m_axis_tready when pass;
 
 	with state_volume select m_axis_tvalid <=
+		'0' when fetch,
 		'0' when clipping,
 		'0' when control,
 		'0' when amplification,
@@ -76,31 +72,39 @@ begin
 			if aresetn = '0' then
 		
 				m_axis_tdata <= (others => '0'); 
-				state_volume <= clipping;
+				state_volume <= fetch;
 			
 			elsif rising_edge(aclk) then
 
 				case state_volume is
+
+					when fetch =>
+
+						if s_axis_tvalid = '1' then
+							
+							mem_data <= SIGNED(s_axis_tdata);
+							t_last_reg <= s_axis_tlast;
+							mem_volume <= UNSIGNED(volume);
+
+							state_volume <= clipping;
+						end if;
+						
 				
 					when clipping =>
 
-						if s_axis_tvalid = '1' then
-
-							data <= shift_right(s_axis_tdata_int,6);
-
-							t_last_reg <= s_axis_tlast;
+							-- Faccio lo shift per evitare la saturazione
+							mem_data <= shift_right(mem_data,6);
 
 							state_volume <= control;
 						
-						end if;
-
 
 					when control =>
-						if volume_int >= step_div2 then
+						
+						if mem_volume >= step_div2 then
 							state_volume <= amplification;
 						
 
-						elsif volume_int < step_div2-step_div then
+						elsif mem_volume < step_div2-step_div then
 							state_volume <= attenuation;
 						
 						else
@@ -111,13 +115,13 @@ begin
 
 					when amplification =>
 							
-						num_of_step_y <= to_integer(shift_right(volume_int,division_step)) - shift ; --magari possiamo scriverlo solo una volta tra ampl e att
+						num_of_step_y <= to_integer(shift_right(mem_volume,division_step)) - shift ; --magari possiamo scriverlo solo una volta tra ampl e att
 
 						gen_loop: for i in 1 to max_step loop
 
 							if i <= num_of_step_y then
 
-								s_axis_tdata_int <= s_axis_tdata_int(s_axis_tdata_int'high-1 downto 0) & '0';
+								mem_data <= mem_data(mem_data'high-1 downto 0) & '0';
 
 							end if;
 
@@ -128,15 +132,15 @@ begin
 					
 					when attenuation =>
 
-						num_of_step_y <= to_integer(shift_right(volume_int,division_step)) - shift;
+						num_of_step_y <= to_integer(shift_right(mem_volume,division_step)) - shift;
 							
-						if s_axis_tdata_int < 0 then
+						if mem_data < 0 then
 
 							gen_loop2: for i in 1 to max_step loop
 
 								if i <= num_of_step_y then
 
-									s_axis_tdata_int <= '1' & s_axis_tdata_int(s_axis_tdata_int'high downto 1);
+									mem_data <= '1' & mem_data(mem_data'high downto 1);
 
 								end if;
 
@@ -149,7 +153,7 @@ begin
 
 								if i <= num_of_step_y then
 
-									s_axis_tdata_int <= '0' & s_axis_tdata_int(s_axis_tdata_int'high downto 1);
+									mem_data <= '0' & mem_data(mem_data'high downto 1);
 
 								end if;
 
@@ -164,10 +168,10 @@ begin
 						if m_axis_tready = '1' then
 							
 							m_axis_tlast <= t_last_reg;
-							m_axis_tdata <= std_logic_vector(s_axis_tdata_int(23 downto 0));
+							m_axis_tdata <= std_logic_vector(mem_data(23 downto 0));
 								
+							state_volume <= fetch;
 						end if;
-						state_volume <= clipping;
 
 
 					when pass =>
@@ -175,7 +179,7 @@ begin
 						m_axis_tlast <= s_axis_tlast;
 						m_axis_tdata <= s_axis_tdata;
 
-						state_volume <= clipping;
+						state_volume <= fetch;
 
 				end case;
 			end if;			
