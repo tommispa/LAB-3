@@ -27,7 +27,12 @@ end filter;
 architecture rtl of filter is
 
 -- Macchina a stati che ci permette di fare pipelining nelle operazioni di media
-type avarage_filter_fsm is (filter_choice, fetch, shift, sum, pull);
+type state_filter_type is (filter_choice, fetch, shift, sum, pull, pass);
+signal state_filter : state_filter_type;
+-- Questa costante mi serve per decidere di quanti bit fare il padding per fare la media.
+-- La funzione CEIL non servirebbe in quanto come integer avarage possono capitare solo
+-- potenze di due
+constant bit_avarage : POSITIVE := POSITIVE(CEIL(log2(REAL(AVARAGE))));
 
 -- Matrice per definire una memoria bidimensionale
 type matrix is array (AVARAGE - 1 downto 0) of SIGNED(23 downto 0);
@@ -50,20 +55,20 @@ begin
 
     data_sign <= SIGNED(s_axis_tdata);
 
-    with avarage_filter_fsm select s_axis_tready <=
-        '0' when filter_choice;
-        '1' when fetch;
-        '0' when shift;
-        '0' when sum;
-        '0' when pull;
+    with state_filter select s_axis_tready <=
+        '0' when filter_choice,
+        '1' when fetch,
+        '0' when shift,
+        '0' when sum,
+        '0' when pull,
         '1' when pass;
 
-    with avarage_filter_fsm select m_axis_tvalid <=
-        '0' when filter_choice;
-        '0' when fetch;
-        '0' when shift;
-        '0' when sum;
-        '1' when pull;
+    with state_filter select m_axis_tvalid <=
+        '0' when filter_choice,
+        '0' when fetch,
+        '0' when shift,
+        '0' when sum,
+        '1' when pull,
         '1' when pass;
 
     process (aclk, aresetn)
@@ -80,18 +85,18 @@ begin
 
 		data_sign <= (others => '0');
 
-        avarage_filter_fsm <= filter_choice;
+        state_filter <= filter_choice;
 
         elsif rising_edge(aclk) then
             
-            case avarage_filter_fsm is
+            case state_filter is
 
                 when filter_choice =>
 
                     if filter_enable = '1' then
-                        avarage_filter_fsm <= fetch;
+                        state_filter <= fetch;
                     else
-                        avarage_filter_fsm <= pass;
+                        state_filter <= pass;
                     end if;
                         
 
@@ -110,7 +115,7 @@ begin
                         end if;
                         
                         -- Vado nello stato di somma
-                        avarage_filter_fsm <= shift;
+                        state_filter <= shift;
 
                     end if;
                 
@@ -138,7 +143,7 @@ begin
 
                     end if;
                     
-                    avarage_filter_fsm <= sum;
+                    state_filter <= sum;
 
                 when sum =>
 
@@ -176,7 +181,7 @@ begin
 
                         end if;
                             
-                        avarage_filter_fsm <= filter_choice;
+                        state_filter <= filter_choice;
 
                     end if;
                     
@@ -198,7 +203,7 @@ begin
 
                         end if;
 
-                        avarage_filter_fsm <= filter_choice;
+                        state_filter <= filter_choice;
 
                     end if;
             
