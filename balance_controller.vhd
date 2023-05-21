@@ -48,10 +48,7 @@ begin
 		begin
 
 			if aresetn = '0' then
-
-				balance <= (others => '0');
-				s_axis_tdata <= (others => '0');
-                
+               
                 -- Resetto i segnali con cui gestisco la comunicazione fra i blocchi
 
                 s_axis_ready <= '0';
