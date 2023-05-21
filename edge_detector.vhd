@@ -48,7 +48,7 @@ begin
 			if (TRIGGER_RISING and input_signal_previous = '0' and input_signal = '1') or
 				(not TRIGGER_RISING and input_signal_previous = '1' and input_signal = '0') then
 
-				-- ... set edge_detected to 1.
+				-- In questo modo ho un'uscita costante dall'edge_detector e non piu' un impulso
 				edge_detected_reg	<= not(edge_detected_reg);
 
 			end if;
