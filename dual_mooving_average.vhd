@@ -5,7 +5,7 @@ use IEEE.MATH_REAL.all;
 
 entity dual_mooving_average is
 	generic (
-		AVARAGE 			: INTEGER RANGE 0 TO 32 := 32 -- Numero di campioni con cui fare la media
+		AVERAGE 			: INTEGER RANGE 0 TO 32 := 32 -- Numero di campioni con cui fare la media
 	);
     Port ( aclk             : in STD_LOGIC;
            aresetn          : in STD_LOGIC;
@@ -26,21 +26,26 @@ end dual_mooving_average;
 
 architecture rtl of dual_mooving_average is
 
--- Macchina a stati che ci permette di fare pipelining nelle operazioni di media
+-- Macchina a stati con sei stati. 
+-- Filter_choiche: controlla se il filtro è attivo o meno
+-- Fetch: prende il dato in ingresso e lo carica su una memoria (se il filtro è attivo)
+-- Shift: faccio shiftare di una posizione tutti i dati sulla memoria
+-- Pull: fa uscire il dato dal bus dati del master
+-- Pass: fa uscire direttamente il dato dal bus dati del master se il filtro non è attivo
 type state_filter_type is (filter_choice, fetch, shift, sum, pull, pass);
 signal state_filter : state_filter_type;
 
 -- Questa costante mi serve per decidere di quanti bit fare il padding per fare la media.
 -- La funzione CEIL non servirebbe in quanto come integer avarage possono capitare solo
 -- potenze di due
-constant bit_avarage : POSITIVE := POSITIVE(CEIL(log2(REAL(AVARAGE))));
+constant bit_avarage : POSITIVE := POSITIVE(CEIL(log2(REAL(AVERAGE))));
 
 -- Matrice per definire una memoria bidimensionale
-type matrix is array (AVARAGE - 1 downto 0) of SIGNED(23 downto 0);
+type matrix is array (AVERAGE - 1 downto 0) of SIGNED(23 downto 0);
 
--- Memoria bidimensionale in cui inserisco gli ultimi AVARAGE campioni del canale di sinistra
+-- Memoria bidimensionale in cui inserisco gli ultimi AVERAGE campioni del canale di sinistra
 signal mem_sx : matrix := (others => (others => '0'));
--- Memoria bidimensionale in cui inserisco gli ultimi AVARAGE campioni del canale di destra
+-- Memoria bidimensionale in cui inserisco gli ultimi AVERAGE campioni del canale di destra
 signal mem_dx : matrix := (others => (others => '0'));
 
 -- Vettore intermedio per fare la somma dei campione del canale di sinistra
@@ -125,7 +130,7 @@ begin
                     if t_last_reg = '0' then
                         
                         -- Faccio lo shift di ogni elemento con quello precedente
-					    for i in 1 to AVARAGE - 1 loop
+					    for i in 1 to AVERAGE - 1 loop
 
                         mem_sx(i) <= mem_sx(i-1);
                         
@@ -136,7 +141,7 @@ begin
                     if t_last_reg = '1' then
                         
                         -- Faccio lo shift di ogni elemento con quello precedente
-				        for j in 1 to AVARAGE - 1 loop
+				        for j in 1 to AVERAGE - 1 loop
 					
 					    mem_dx(j) <= mem_dx(j-1);
 
@@ -153,7 +158,7 @@ begin
                         
                         -- Per aggiornare il vettore somma mi basta sommare l'ultimo
                         -- sample acquisito e sottrarre l'ultimo sample della memoria
-                        sum_vec_sx <= sum_vec_sx + mem_sx(0) - mem_sx(AVARAGE - 1);
+                        sum_vec_sx <= sum_vec_sx + mem_sx(0) - mem_sx(AVERAGE - 1);
 
                     end if;
                         
@@ -161,7 +166,7 @@ begin
                             
                         -- Per aggiornare il vettore somma mi basta sommare l'ultimo
                         -- sample acquisito e sottrarre l'ultimo sample della memoria
-                        sum_vec_dx <= sum_vec_dx + mem_dx(0) - mem_dx(AVARAGE - 1);
+                        sum_vec_dx <= sum_vec_dx + mem_dx(0) - mem_dx(AVERAGE - 1);
 
                     end if;
 					
