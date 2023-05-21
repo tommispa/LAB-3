@@ -32,7 +32,8 @@ architecture Behavioral of balance_controller is
 	signal		num_of_step_x	: signed(9 downto 0)  := (others => '0');
 	signal      zero            : signed(9 downto 0)  := (others => '0');
 	signal      one             : signed(9 downto 0) := (others => '1');
-    signal      data_sig        : signed(23 downto 0) := (others => '0');
+    signal      data_sig        : signed(23 downto 0) := signed(s_axis_tdata);
+    signal      balance_int     : signed(9 downto 0) := signed(balance);
 	constant 	step_div 	    : integer := 2**division_step;
 	constant    step_div2       : integer := 2**(division_step-1);
 	constant	max_step        : integer := (512/step_div) - 1;
@@ -51,7 +52,7 @@ begin
                
                 -- Resetto i segnali con cui gestisco la comunicazione fra i blocchi
 
-                s_axis_ready <= '0';
+                s_axis_tready <= '0';
                 m_axis_tlast <= '0';
                 m_axis_tvalid <= '0';
                 m_axis_tdata <= (others => '0');
@@ -66,17 +67,17 @@ begin
 					-------------- dato sx --------------
 					if s_axis_tlast = '0' then
 		
-						if signed(balance) >= step_div2 then			-- se il joystick si muove verso dx devo abbassare il volume a sx
+						if balance_int >= step_div2 then			-- se il joystick si muove verso dx devo abbassare il volume a sx
 		
 							
-							num_of_step_x <= zero(division_step downto 1) & (signed(balance)(signed(balance)'high downto division_step));
+							num_of_step_x <= zero(division_step downto 1) & (balance_int(balance_int'high downto division_step));
 							
-							if signed(s_axis_tdata) < 0 then
+							if data_sig < 0 then
 								gen_loop: for i in 1 to max_step loop
 
 									if i <= to_integer(signed(num_of_step_x)) then
 
-										data_sig <= '1' & (signed(s_axis_tdata)(signed(s_axis_tdata)'high downto 1));
+										data_sig <= '1' & (data_sig(data_sig'high downto 1));
 
 									end if;
 								end loop gen_loop;
@@ -87,7 +88,7 @@ begin
 
 								    if i <= to_integer(signed(num_of_step_x)) then
 
-									    data_sig <= '0' & (signed(s_axis_tdata)(signed(s_axis_tdata)'high downto 1));
+									    data_sig <= '0' & (data_sig(data_sig'high downto 1));
 
 								    end if;
 							    end loop gen_loop2;
@@ -119,17 +120,17 @@ begin
 					-------------- dato dx --------------
 					if s_axis_tlast = '1' then
 		
-						if signed(balance) <= -step_div2 then
+						if balance_int <= -step_div2 then
 							
-							num_of_step_x <= one(division_step downto 1) & (signed(balance)(signed(balance)'high downto division_step));
+							num_of_step_x <= one(division_step downto 1) & (balance_int(balance_int'high downto division_step));
 		
-							if signed(s_axis_tdata) < 0 then
+							if data_sig < 0 then
 								
 								gen_loop3: for i in 1 to max_step loop
 
 									if i <= to_integer(signed(num_of_step_x)) then
 
-										data_sig <= '1' & (signed(s_axis_tdata)(signed(s_axis_tdata)'high downto 1));
+										data_sig <= '1' & (data_sig(data_sig'high downto 1));
 
 									end if;
 								end loop gen_loop3;
@@ -140,7 +141,7 @@ begin
 
 								if i <= to_integer(signed(num_of_step_x)) then
 
-									data_sig <= '0' & (signed(s_axis_tdata)(signed(s_axis_tdata)'high downto 1));
+									data_sig <= '0' & (data_sig(data_sig'high downto 1));
 
 								end if;
 							end loop gen_loop4;
