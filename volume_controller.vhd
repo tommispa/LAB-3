@@ -35,6 +35,8 @@ architecture Behavioral of volume_controller is
 	signal      one_vol         : signed(9 downto 0) := (others => '1');
 	constant	max_step : integer := (512/step_div) - 1;
 	signal		data	: signed(23 downto 0) := (others => '0');
+	signal		s_axis_tdata_int	:	signed (23 downto 0) := signed(s_axis_tdata);
+	signal		volume_int		: signed (9 downto 0) := signed(volume);
 
 begin
 
@@ -45,9 +47,6 @@ begin
 		begin
 
 			if aresetn = '0' then
-
-				signed(volume) <= (others => '0');
-				signed(s_axis_tdata) <= (others => '0');
 		
 				-- Resetto i segnali con cui gestisco la comunicazione fra i blocchi
 				s_axis_tready <= '0';
@@ -62,17 +61,17 @@ begin
 		
 				if s_axis_tvalid = '1' then
 
-					data <= shift_right(signed(s_axis_tdata),6);
+					data <= shift_right(s_axis_tdata_int,6);
 		
-					if signed(volume) >= step_div2 then			-- se il joystick si muove verso l'alto, il volume deve aumentare
+					if volume_int >= step_div2 then			-- se il joystick si muove verso l'alto, il volume deve aumentare
 									
-						num_of_step_y <= zero_vol(division_step downto 1) & signed(volume)(9 downto division_step);													
+						num_of_step_y <= zero_vol(division_step downto 1) & volume_int(9 downto division_step);													
 																								
-						gen_loop: for i in 1 to max_step_sx loop
+						gen_loop: for i in 1 to max_step loop
 
 							if i <= to_integer(signed(num_of_step_y)) then
 
-								signed(s_axis_tdata) <= signed(s_axis_tdata)(signed(s_axis_tdata)'high-1 downto 0) & '0';
+								s_axis_tdata_int <= s_axis_tdata_int(s_axis_tdata_int'high-1 downto 0) & '0';
 
 							end if;
 
@@ -84,22 +83,22 @@ begin
 	
 							m_axis_tvalid <= '1';
 							m_axis_tlast <= s_axis_tlast;
-							m_axis_tdata <= std_logic_vector(signed(s_axis_tdata)(23 downto 0));
+							m_axis_tdata <= std_logic_vector(s_axis_tdata_int(23 downto 0));
 						
 						end if;
-					end if;
+					
 
-					if signed(volume) < step_div2 then			-- se il joystick si muove verso il basso, il volume deve diminuire
+					elsif volume_int < step_div2 then			-- se il joystick si muove verso il basso, il volume deve diminuire
 							
-						num_of_step_y <= one_vol(division_step downto 1) & signed(volume)(9 downto division_step);
+						num_of_step_y <= one_vol(division_step downto 1) & volume_int(9 downto division_step);
 						
-						if signed(s_axis_tdata) < 0 then
+						if s_axis_tdata_int < 0 then
 
-							gen_loop2: for i in 1 to max_step_sx loop
+							gen_loop2: for i in 1 to max_step loop
 
 								if i <= to_integer(signed(num_of_step_y)) then
 
-									signed(s_axis_tdata) <= '1' & signed(s_axis_tdata)(signed(s_axis_tdata)'high downto 1);
+									s_axis_tdata_int <= '1' & s_axis_tdata_int(s_axis_tdata_int'high downto 1);
 
 								end if;
 
@@ -108,11 +107,11 @@ begin
 							
 						else
 							
-							gen_loop3: for i in 1 to max_step_sx loop
+							gen_loop3: for i in 1 to max_step loop
 
 								if i <= to_integer(signed(num_of_step_y)) then
 
-									signed(s_axis_tdata) <= '0' & signed(s_axis_tdata)(signed(s_axis_tdata)'high downto 1);
+									s_axis_tdata_int <= '0' & s_axis_tdata_int(s_axis_tdata_int'high downto 1);
 
 								end if;
 
@@ -123,10 +122,10 @@ begin
 	
 							m_axis_tvalid <= '1';
 							m_axis_tlast <= s_axis_tlast;
-							m_axis_tdata <= std_logic_vector(signed(s_axis_tdata)(23 downto 0));
+							m_axis_tdata <= std_logic_vector(s_axis_tdata_int(23 downto 0));
 						
 						end if;
-					end if;
+					
 
 					else
 						
