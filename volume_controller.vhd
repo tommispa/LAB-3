@@ -77,16 +77,15 @@ begin
 
 						end loop gen_loop;
 						
-						end if;
-	
+						
 						if m_axis_tready = '1' then
-	
+							
 							m_axis_tvalid <= '1';
 							m_axis_tlast <= s_axis_tlast;
 							m_axis_tdata <= std_logic_vector(s_axis_tdata_int(23 downto 0));
-						
+							
 						end if;
-					
+						
 
 					elsif volume_int < step_div2 then			-- se il joystick si muove verso il basso, il volume deve diminuire
 							
@@ -116,7 +115,8 @@ begin
 								end if;
 
 							end loop gen_loop3;						
-							end if;
+						
+						end if;
 		
 						if m_axis_tready = '1' then
 	
@@ -140,7 +140,7 @@ begin
 					end if;
 		
 				end if;
-
+			end if;
 	end process;
 
 end Behavioral;
