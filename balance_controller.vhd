@@ -32,9 +32,11 @@ architecture Behavioral of balance_controller is
 	signal		num_of_step_x	: signed(9 downto 0)  := (others => '0');
 	signal      zero            : signed(9 downto 0)  := (others => '0');
 	signal      one             : signed(9 downto 0) := (others => '1');
+    signal      data_sig        : signed(23 downto 0) := (others => '0');
 	constant 	step_div 	    : integer := 2**division_step;
 	constant    step_div2       : integer := 2**(division_step-1);
 	constant	max_step        : integer := (512/step_div) - 1;
+
 
 
 begin
@@ -77,21 +79,21 @@ begin
 
 									if i <= to_integer(signed(num_of_step_x)) then
 
-										signed(s_axis_tdata) <= '1' & (signed(s_axis_tdata)(signed(s_axis_tdata)'high downto 1));
+										data_sig <= '1' & (signed(s_axis_tdata)(signed(s_axis_tdata)'high downto 1));
 
 									end if;
 								end loop gen_loop;
 
 							else
 							 
-							gen_loop2: for i in 1 to max_step loop
+							    gen_loop2: for i in 1 to max_step loop
 
-								if i <= to_integer(signed(num_of_step_x)) then
+								    if i <= to_integer(signed(num_of_step_x)) then
 
-									signed(s_axis_tdata) <= '0' & (signed(s_axis_tdata)(signed(s_axis_tdata)'high downto 1));
+									    data_sig <= '0' & (signed(s_axis_tdata)(signed(s_axis_tdata)'high downto 1));
 
-								end if;
-							end loop gen_loop2;
+								    end if;
+							    end loop gen_loop2;
 
                             end if;
 
@@ -99,7 +101,7 @@ begin
 
                                 m_axis_tvalid <= '1';
                                 m_axis_tlast <= '0';
-                                m_axis_tdata <= std_logic_vector(signed(s_axis_tdata)(23 downto 0));
+                                m_axis_tdata <= std_logic_vector(data_sig(23 downto 0));
                             
                             end if;
    
@@ -130,7 +132,7 @@ begin
 
 									if i <= to_integer(signed(num_of_step_x)) then
 
-										signed(s_axis_tdata) <= '1' & (signed(s_axis_tdata)(signed(s_axis_tdata)'high downto 1));
+										data_sig <= '1' & (signed(s_axis_tdata)(signed(s_axis_tdata)'high downto 1));
 
 									end if;
 								end loop gen_loop3;
@@ -141,7 +143,7 @@ begin
 
 								if i <= to_integer(signed(num_of_step_x)) then
 
-									signed(s_axis_tdata) <= '0' & (signed(s_axis_tdata)(signed(s_axis_tdata)'high downto 1));
+									data_sig <= '0' & (signed(s_axis_tdata)(signed(s_axis_tdata)'high downto 1));
 
 								end if;
 							end loop gen_loop4;
@@ -152,7 +154,7 @@ begin
 
                                 m_axis_tvalid <= '1';
                                 m_axis_tlast <= '0';
-                                m_axis_tdata <= std_logic_vector(signed(s_axis_tdata)(23 downto 0));
+                                m_axis_tdata <= std_logic_vector(data_sig(23 downto 0));
                             
                             end if;
 
