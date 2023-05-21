@@ -63,9 +63,9 @@ begin
 
 					data <= shift_right(s_axis_tdata_int,6);
 		
-					if s_axis_tdata_int >= step_div2 then			-- se il joystick si muove verso l'alto, il volume deve aumentare
+					if volume_int >= step_div2 then			-- se il joystick si muove verso l'alto, il volume deve aumentare
 									
-						num_of_step_y <= zero_vol(division_step downto 1) & signed(volume)(9 downto division_step);													
+						num_of_step_y <= zero_vol(division_step downto 1) & volume_int(9 downto division_step);													
 																								
 						gen_loop: for i in 1 to max_step loop
 
@@ -88,9 +88,9 @@ begin
 						end if;
 					
 
-					elsif signed(volume) < step_div2 then			-- se il joystick si muove verso il basso, il volume deve diminuire
+					elsif volume_int < step_div2 then			-- se il joystick si muove verso il basso, il volume deve diminuire
 							
-						num_of_step_y <= one_vol(division_step downto 1) & signed(volume)(9 downto division_step);
+						num_of_step_y <= one_vol(division_step downto 1) & volume_int(9 downto division_step);
 						
 						if s_axis_tdata_int < 0 then
 
