@@ -32,14 +32,9 @@ architecture Behavioral of balance_controller is
 	-- Registro in cui salvo quante volte devo shiftare il vettore per moltiplicare o dividere
 	signal		num_of_step_x	: integer := 0;
 
-	signal      zero            : signed(9 downto 0)  := (others => '0');
-	signal      one             : signed(9 downto 0) := (others => '1');
-    signal      data_sig        : signed(23 downto 0) := signed(s_axis_tdata);
-    signal      balance_int     : signed(9 downto 0) := signed(balance);
 	constant 	step_div 	    : integer := 2**division_step;
 	constant    step_div2       : integer := 2**(division_step-1) + 512;
 	constant	shift			: integer := 512/step_div;
-	constant	max_step        : integer := (512/step_div) - 1;
 
 	type state_balance_type is (fetch, control, left_channel, right_channel, send);
 	signal state_balance : state_balance_type := fetch;
@@ -98,15 +93,18 @@ begin
 						end if;
 					
 					when control =>
-						
-						-- Costante che mi permette di calcolare di quanto devo shiftare 
-						-- mem_data per avere l'attenuazione desiderata
-						num_of_step_x <= to_integer(shift_right(mem_balance,division_step)) - shift;
 							
 						if mem_balance >= step_div2 then
-							state_balance <= left_channel;
+							-- Costante che mi permette di calcolare di quanto devo shiftare 
+							-- mem_data per avere l'attenuazione desiderata
+							num_of_step_x <= to_integer(shift_right(mem_balance,division_step)) - shift;
+						
+						state_balance <= left_channel;
 						
 						elsif mem_balance < step_div2-step_div then
+							-- Stessa costante, ma cambiata di segno in quanto altrimenti sarebbe negativa
+							num_of_step_x <= -(to_integer(shift_right(mem_balance,division_step)) - shift);
+						
 							state_balance <= right_channel;
 						
 						else
