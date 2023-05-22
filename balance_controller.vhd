@@ -42,7 +42,7 @@ architecture Behavioral of balance_controller is
 	constant	max_step        : integer := (512/step_div) - 1;
 
 	type state_balance_type is (fetch, control, left_channel, right_channel, send);
-	signal state_balance : state_balance_type;
+	signal state_balance : state_balance_type := fetch;
 	
 	-- Registro in cui salvo il valore del tlast associato al segnale in ingresso
 	signal		t_last_reg			:	std_logic;
@@ -95,6 +95,7 @@ begin
 							t_last_reg <= s_axis_tlast;
 							mem_balance <= UNSIGNED(balance);
 
+							state_balance <= control;
 						end if;
 					
 					when control =>
@@ -102,7 +103,6 @@ begin
 						if mem_balance >= step_div2 then
 							state_balance <= left_channel;
 						
-
 						elsif mem_balance < step_div2-step_div then
 							state_balance <= right_channel;
 						
@@ -114,15 +114,14 @@ begin
 					when left_channel =>
 						
 						num_of_step_x <= to_integer(shift_right(mem_balance,division_step)) - shift;
-					
-						-- Bisogna implementare lo shift
+						mem_data <= shift_left(mem_data,num_of_step_x);
 
 						state_balance <= send;
 
 					when right_channel =>
 						
 						num_of_step_x <= to_integer(shift_right(mem_balance,division_step)) - shift;					
-						-- Bisogna implmentare lo shift
+						mem_data <= shift_left(mem_data,num_of_step_x);
 
 						state_balance <= send;
 
@@ -137,116 +136,6 @@ begin
 						end if;
 
 				end case;
-----------------------------------------------------------------------------------------------------------------------------------				
-				s_axis_tready <= '1';
-
-                if s_axis_tvalid = '1' then
-		
-					-------------- dato sx --------------
-					if s_axis_tlast = '0' then
-		
-						if balance_int >= step_div2 then			-- se il joystick si muove verso dx devo abbassare il volume a sx
-		
-							
-							num_of_step_x <= zero(division_step downto 1) & (balance_int(balance_int'high downto division_step));
-							
-							if data_sig < 0 then
-								gen_loop: for i in 1 to max_step loop
-
-									if i <= to_integer(signed(num_of_step_x)) then
-
-										data_sig <= '1' & (data_sig(data_sig'high downto 1));
-
-									end if;
-								end loop gen_loop;
-
-							else
-							 
-							    gen_loop2: for i in 1 to max_step loop
-
-								    if i <= to_integer(signed(num_of_step_x)) then
-
-									    data_sig <= '0' & (data_sig(data_sig'high downto 1));
-
-								    end if;
-							    end loop gen_loop2;
-
-                            end if;
-
-                            if m_axis_tready = '1' then
-
-                                m_axis_tvalid <= '1';
-                                m_axis_tlast <= '0';
-                                m_axis_tdata <= std_logic_vector(data_sig(23 downto 0));
-                            
-                            end if;
-   
-
-                        else
-
-                            if m_axis_tready = '1' then
-
-                                m_axis_tvalid <= '1';
-                                m_axis_tlast <= '0';
-                                m_axis_tdata <= s_axis_tdata;
-
-                            end if;
-						
-								
-						end if;
-		
-					-------------- dato dx --------------
-					if s_axis_tlast = '1' then
-		
-						if balance_int <= -step_div2 then
-							
-							num_of_step_x <= one(division_step downto 1) & (balance_int(balance_int'high downto division_step));
-		
-							if data_sig < 0 then
-								
-								gen_loop3: for i in 1 to max_step loop
-
-									if i <= to_integer(signed(num_of_step_x)) then
-
-										data_sig <= '1' & (data_sig(data_sig'high downto 1));
-
-									end if;
-								end loop gen_loop3;
-								
-							else
-
-							gen_loop4: for i in 1 to max_step loop
-
-								if i <= to_integer(signed(num_of_step_x)) then
-
-									data_sig <= '0' & (data_sig(data_sig'high downto 1));
-
-								end if;
-							end loop gen_loop4;
-
-                            end if;
-
-                            if m_axis_tready = '1' then
-
-                                m_axis_tvalid <= '1';
-                                m_axis_tlast <= '0';
-                                m_axis_tdata <= std_logic_vector(data_sig(23 downto 0));
-                            
-                            end if;
-
-                        else
-
-                            if m_axis_tready = '1' then
-
-                                m_axis_tvalid <= '1';
-                                m_axis_tlast <= '0';
-                                m_axis_tdata <= s_axis_tdata;
-
-                            end if;
-					    end if;
-                    end if;
-				end if;
 			end if;
-			end if;
-	end process;
-end Behavioral;
+		end process;
+end architecture;
