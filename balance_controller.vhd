@@ -46,7 +46,6 @@ architecture Behavioral of balance_controller is
 	
 	-- Registro in cui salvo il valore del tlast associato al segnale in ingresso
 	signal		t_last_reg			:	std_logic;
-
 	-- Registro in cui salvo il valore del dato in ingresso tramite s_axis_tdata nella sua forma corretta, ovvero SIGNED
 	signal		mem_data			:	signed(23 downto 0) := (others => '0');
 	-- Regsitro in cui salvo il valore del dato in ingresso tramite balance nella sua forma corretta, ovvero UNSIGNED
@@ -99,7 +98,11 @@ begin
 						end if;
 					
 					when control =>
-
+						
+						-- Costante che mi permette di calcolare di quanto devo shiftare 
+						-- mem_data per avere l'attenuazione desiderata
+						num_of_step_x <= to_integer(shift_right(mem_balance,division_step)) - shift;
+							
 						if mem_balance >= step_div2 then
 							state_balance <= left_channel;
 						
@@ -113,16 +116,18 @@ begin
 
 					when left_channel =>
 						
-						num_of_step_x <= to_integer(shift_right(mem_balance,division_step)) - shift;
-						mem_data <= shift_left(mem_data,num_of_step_x);
-
+						-- Vado ad attenuare il segnale solamente se proviene dal canale di sinistra
+						if t_last_reg = '0' then
+							mem_data <= shift_right(mem_data,num_of_step_x);
+						end if;
 						state_balance <= send;
 
 					when right_channel =>
 						
-						num_of_step_x <= to_integer(shift_right(mem_balance,division_step)) - shift;					
-						mem_data <= shift_left(mem_data,num_of_step_x);
-
+						-- Vado ad attenuare il segnale solamente se proviene dal canale di destra
+						if t_last_reg = '1' then
+							mem_data <= shift_right(mem_data,num_of_step_x);
+						end if;
 						state_balance <= send;
 
 					when send =>

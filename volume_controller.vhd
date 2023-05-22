@@ -106,6 +106,10 @@ begin
 
 					when control =>
 						
+						-- Costante che mi permette di calcolare di quanto devo shiftare 
+						-- mem_data per avere l'attenuazione/amplificazione desiderata
+						num_of_step_y <= to_integer(shift_right(mem_volume,division_step)) - shift ; 
+
 						if mem_volume >= step_div2 then
 							state_volume <= amplification;
 						
@@ -120,10 +124,8 @@ begin
 
 
 					when amplification =>
-						
-						num_of_step_y <= to_integer(shift_right(mem_volume,division_step)) - shift ; --magari possiamo scriverlo solo una volta tra ampl e att
 
-						mem_data <= shift_left(mem_data, num_of_step_y);
+						mem_data <= shift_left(mem_data, num_of_step_y); -- non si puo' implementare cosi' perche' non tiene conto dell'overflow
 						
 						--gen_loop: for i in 1 to max_step loop
 
@@ -139,8 +141,6 @@ begin
 
 					
 					when attenuation =>
-
-						num_of_step_y <= to_integer(shift_right(mem_volume,division_step)) - shift;
 							
 						mem_data <= shift_right(mem_data,num_of_step_y);
 						
