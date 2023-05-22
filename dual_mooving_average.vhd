@@ -26,7 +26,7 @@ end dual_mooving_average;
 
 architecture rtl of dual_mooving_average is
 
--- Macchina a stati con sei stati. 
+-- Macchina a stati con sei stati
 -- Filter_choiche: controlla se il filtro e' attivo o meno
 -- Fetch: prende il dato in ingresso e lo carica su una memoria (se il filtro è attivo)
 -- Shift: faccio shiftare di una posizione tutti i dati sulla memoria
@@ -39,7 +39,7 @@ signal state_filter : state_filter_type;
 -- La funzione CEIL non servirebbe in quanto AVERAGE puo' essere solamente una potenza
 -- di due
 constant bit_avarage : POSITIVE := POSITIVE(CEIL(log2(REAL(AVERAGE))));
-
+    
 -- Matrice per definire una memoria bidimensionale
 type matrix is array (AVERAGE - 1 downto 0) of SIGNED(23 downto 0);
 
@@ -85,13 +85,13 @@ begin
         -- Se si abbassa il segnale di reset inizializzo tutti i registri
         if aresetn = '0' then
             
-        mem_sx <= (others => (others => '0'));
-		mem_dx <= (others => (others => '0'));
+            mem_sx <= (others => (others => '0'));
+            mem_dx <= (others => (others => '0'));
 
-		sum_vec_sx <= (others => '0');
-		sum_vec_dx <= (others => '0');
+            sum_vec_sx <= (others => '0');
+            sum_vec_dx <= (others => '0');
 
-        state_filter <= filter_choice;
+            state_filter <= filter_choice;
 
         elsif rising_edge(aclk) then
             

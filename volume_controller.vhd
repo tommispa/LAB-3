@@ -27,51 +27,66 @@ end volume_controller;
 
 architecture Behavioral of volume_controller is
 
+	-- Macchina a stati con cincque stati
+	-- Fetch: prende il dato in ingresso e lo carica su una memoria
+	-- Control: verifico se il dato in ingresso e' da amplificare, attenuare o lasciare invariato
+	-- Amplificarion: amplifico il segnale di quanto necessario
+	-- Attenuation: attenuo il segnale di quanto necessario
+	-- Send: fa uscire il dato dal bus dati del master
 	type state_volume_type is (fetch, control, amplification, attenuation, send);
 	signal state_volume : state_volume_type;
 
-
+	-- Registro in cui salvo quante volte devo shiftare il vettore per moltiplicare o dividere
 	signal		num_of_step_y		: 	integer := 0;
+
+	-- Costanti che servono per le varie operazioni, commentare bene
 	constant 	step_div 			: 	integer := 2**division_step;
 	constant    step_div2   		: 	integer := 2**(division_step-1) + 512;
 	constant	shift				:	integer := 512/step_div;
+	
+	-- Questi segnali li dovremmo poter eliminare
 	signal		zero_vol			: 	unsigned(9 downto 0) := (others => '0');
 	signal      one_vol         	: 	unsigned(9 downto 0) := (others => '1');
 	constant	max_step 			: 	integer := (512/step_div) - 1;
 
-	-- Registri in cui salvo i vari segnali
+	-- Registro in cui salvo il valore del tlast associato al segnale in ingresso
 	signal		t_last_reg			:	std_logic;
+	-- Registro in cui salvo il valore del dato in ingresso tramite s_axis_tdata nella sua forma corretta, ovvero SIGNED
 	signal		mem_data			:	signed(23 downto 0) := (others => '0');
+	-- Regsitro in cui salvo il valore del dato in ingresso tramite volume nella sua forma corretta, ovvero UNSIGNED
 	signal		mem_volume			:	unsigned(9 downto 0) := (others => '0');
 
 begin
 
+	-- Alzo il segnale s_axis_tready solamente quando devo prendere il dato
 	with state_volume select s_axis_tready <=
 		'1' when fetch,
-		--'0' when clipping,
 		'0' when control,
 		'0' when amplification,
 		'0' when attenuation,
 		'0' when send;
-		--m_axis_tready when pass;
 
+	-- Alzo il segnale m_axis_tvalid solamente quando devo mandare il dato al blocco successivo
 	with state_volume select m_axis_tvalid <=
 		'0' when fetch,
-		--'0' when clipping,
 		'0' when control,
 		'0' when amplification,
 		'0' when attenuation,
 		'1' when send;
-		--s_axis_tvalid when pass;
 		
 	process (aclk, aresetn)
 
 	
 		begin
-
+			
+			-- Se si abbassa il segnale di reset inizializzo tutti i registri
 			if aresetn = '0' then
 		
-				m_axis_tdata <= (others => '0'); 
+				mem_data <= (others => '0');
+				mem_volume <= (others => '0');
+				t_last_reg <= '0';
+				num_of_step_y <= 0; 
+
 				state_volume <= fetch;
 			
 			elsif rising_edge(aclk) then
@@ -87,16 +102,7 @@ begin
 							mem_volume <= UNSIGNED(volume);
 
 							state_volume <= control;
-						end if;
-						
-				
-					--when clipping =>
-
-							-- Faccio lo shift per evitare la saturazione
-							--mem_data <= shift_right(mem_data,6);
-
-							--state_volume <= control;
-						
+						end if;		
 
 					when control =>
 						
@@ -114,18 +120,20 @@ begin
 
 
 					when amplification =>
-							
+						
 						num_of_step_y <= to_integer(shift_right(mem_volume,division_step)) - shift ; --magari possiamo scriverlo solo una volta tra ampl e att
 
-						gen_loop: for i in 1 to max_step loop
+						mem_data <= shift_left(mem_data, num_of_step_y);
+						
+						--gen_loop: for i in 1 to max_step loop
 
-							if i <= num_of_step_y then
+							--if i <= num_of_step_y then
 
-								mem_data <= mem_data(mem_data'high-1 downto 0) & '0';
+							--	mem_data <= mem_data(mem_data'high-1 downto 0) & '0';
 
-							end if;
+							--end if;
 
-						end loop gen_loop;
+						--end loop gen_loop;
 
 						state_volume <= send;
 
@@ -134,37 +142,39 @@ begin
 
 						num_of_step_y <= to_integer(shift_right(mem_volume,division_step)) - shift;
 							
-						if mem_data < 0 then
-
-							gen_loop2: for i in 1 to max_step loop
-
-								if i <= num_of_step_y then
-
-									mem_data <= '1' & mem_data(mem_data'high downto 1);
-
-								end if;
-
-							end loop gen_loop2;
-							
-							
-						else
-							
-							gen_loop3: for i in 1 to max_step loop
-
-								if i <= num_of_step_y then
-
-									mem_data <= '0' & mem_data(mem_data'high downto 1);
-
-								end if;
-
-							end loop gen_loop3;						
+						mem_data <= shift_right(mem_data,num_of_step_y);
 						
-						end if;
+						--if mem_data < 0 then
+
+						--	gen_loop2: for i in 1 to max_step loop
+
+--								if i <= num_of_step_y then
+--									mem_data <= '1' & mem_data(mem_data'high downto 1);
+
+--								end if;
+
+--							end loop gen_loop2;
+							
+							
+--						else
+							
+--							gen_loop3: for i in 1 to max_step loop
+
+--								if i <= num_of_step_y then
+
+--									mem_data <= '0' & mem_data(mem_data'high downto 1);
+
+--								end if;
+
+--							end loop gen_loop3;						
+						
+--						end if;
 
 						state_volume <= send;
 
 
 					when send =>
+						
 						if m_axis_tready = '1' then
 							
 							m_axis_tlast <= t_last_reg;
@@ -172,14 +182,6 @@ begin
 								
 							state_volume <= fetch;
 						end if;
-
-
-					--when pass =>
-									
-						--m_axis_tlast <= t_last_;
-						--m_axis_tdata <= std_logic_vector(mem_data(23 downto 0));
-
-						--state_volume <= fetch;
 
 				end case;
 			end if;			
