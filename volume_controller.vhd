@@ -30,7 +30,7 @@ architecture Behavioral of volume_controller is
 	-- Macchina a stati con cincque stati
 	-- Fetch: prende il dato in ingresso e lo carica su una memoria
 	-- Control: verifico se il dato in ingresso e' da amplificare, attenuare o lasciare invariato
-	-- Amplificarion: amplifico il segnale di quanto necessario
+	-- Amplification: amplifico il segnale di quanto necessario
 	-- Attenuation: attenuo il segnale di quanto necessario
 	-- Send: fa uscire il dato dal bus dati del master
 	type state_volume_type is (fetch, control, amplification, attenuation, send);
