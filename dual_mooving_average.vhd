@@ -5,23 +5,23 @@ use IEEE.MATH_REAL.all;
 
 entity dual_mooving_average is
 	generic (
-		AVERAGE 			: INTEGER RANGE 0 TO 32 := 32 -- Numero di campioni con cui fare la media
+		AVERAGE 			:     INTEGER RANGE 0 TO 32 := 32 -- Numero di campioni con cui fare la media
 	);
-    Port ( aclk             : in STD_LOGIC;
-           aresetn          : in STD_LOGIC;
+    Port ( aclk             : in  STD_LOGIC;
+           aresetn          : in  STD_LOGIC;
            
 		   m_axis_tlast		: out STD_LOGIC; -- Segnale che mi dice se sto ricevendo da canale di destra o di sinistra
 		   m_axis_tvalid	: out STD_LOGIC;
 		   m_axis_tdata	    : out STD_LOGIC_VECTOR(23 downto 0);
-		   m_axis_tready	: in STD_LOGIC;
+		   m_axis_tready	: in  STD_LOGIC;
 		   
-		   s_axis_tlast 	: in STD_LOGIC; -- Segnale che arriva dall'IS_2, che mi dice se sto ricevendo left channel o rigth channel
-		   s_axis_tvalid	: in STD_LOGIC;
-		   s_axis_tdata	    : in STD_LOGIC_VECTOR(23 downto 0);
+		   s_axis_tlast 	: in  STD_LOGIC; -- Segnale che arriva dall'IS_2, che mi dice se sto ricevendo left channel o rigth channel
+		   s_axis_tvalid	: in  STD_LOGIC;
+		   s_axis_tdata	    : in  STD_LOGIC_VECTOR(23 downto 0);
 		   s_axis_tready	: out STD_LOGIC;
 
            
-           filter_enable    : in STD_LOGIC); -- E' stato modificato l'edge_detector
+           filter_enable    : in  STD_LOGIC); -- E' stato modificato l'edge_detector
 end dual_mooving_average;
 
 architecture rtl of dual_mooving_average is
@@ -33,7 +33,7 @@ architecture rtl of dual_mooving_average is
 -- Pull: fa uscire il dato dal bus dati del master
 -- Pass: fa uscire direttamente il dato dal bus dati del master se il filtro non e' attivo
 type state_filter_type is (filter_choice, fetch, shift, sum, pull, pass);
-signal state_filter : state_filter_type;
+signal state_filter : state_filter_type := filter_choice;
 
 -- Questa costante mi serve per decidere di quanti bit fare il padding per fare la media.
 -- La funzione CEIL non servirebbe in quanto AVERAGE puo' essere solamente una potenza
@@ -44,9 +44,9 @@ constant bit_avarage : POSITIVE := POSITIVE(CEIL(log2(REAL(AVERAGE))));
 type matrix is array (AVERAGE - 1 downto 0) of SIGNED(23 downto 0);
 
 -- Memoria bidimensionale in cui inserisco gli ultimi AVERAGE campioni del canale di sinistra
-signal mem_sx : matrix := (others => (others => '0'));
+signal mem_sx       : matrix := (others => (others => '0'));
 -- Memoria bidimensionale in cui inserisco gli ultimi AVERAGE campioni del canale di destra
-signal mem_dx : matrix := (others => (others => '0'));
+signal mem_dx       : matrix := (others => (others => '0'));
 
 -- Vettore intermedio per fare la somma dei campione del canale di sinistra
 signal sum_vec_sx	: SIGNED(23 + bit_avarage downto 0) := (others => '0'); 
@@ -205,9 +205,7 @@ begin
 					m_axis_tdata <= s_axis_tdata;
 
                     state_filter <= filter_choice;
-
-
-            
+                    
             end case;
 
         end if;

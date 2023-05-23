@@ -6,19 +6,19 @@ use IEEE.MATH_REAL.all;
 
 entity volume_controller is
 	generic (
-		division_step	: integer RANGE 0 to 9 := 6				-- Numero n, l'amplification factor deve essere diviso per 2 ogni 2^n joystick units		
+		division_step		:     INTEGER RANGE 0 to 9 := 6	-- Numero n, l'amplification factor deve essere diviso per 2 ogni 2^n joystick units		
 	);
-    Port ( aclk             : in STD_LOGIC;
-           aresetn          : in STD_LOGIC;
+    Port ( aclk             : in  STD_LOGIC;
+           aresetn          : in  STD_LOGIC;
            
 		   m_axis_tlast		: out STD_LOGIC; -- Segnale che mi dice se sto ricevendo da canale di destra o di sinistra
 		   m_axis_tvalid	: out STD_LOGIC;
 		   m_axis_tdata	    : out STD_LOGIC_VECTOR(23 downto 0);
-		   m_axis_tready	: in STD_LOGIC;
+		   m_axis_tready	: in  STD_LOGIC;
 		   
-		   s_axis_tlast 	: in STD_LOGIC; -- Segnale che arriva dall'IS_2, che mi dice se sto ricevendo left channel o rigth channel
-		   s_axis_tvalid	: in STD_LOGIC;
-		   s_axis_tdata	    : in STD_LOGIC_VECTOR(23 downto 0);
+		   s_axis_tlast 	: in  STD_LOGIC; -- Segnale che arriva dall'IS_2, che mi dice se sto ricevendo left channel o rigth channel
+		   s_axis_tvalid	: in  STD_LOGIC;
+		   s_axis_tdata	    : in  STD_LOGIC_VECTOR(23 downto 0);
 		   s_axis_tready	: out STD_LOGIC;
 
            
@@ -34,28 +34,27 @@ architecture Behavioral of volume_controller is
 	-- Attenuation: attenuo il segnale di quanto necessario
 	-- Send: fa uscire il dato dal bus dati del master
 	type state_volume_type is (fetch, control, amplification, attenuation, send);
-	signal state_volume : state_volume_type;
+	signal state_volume : state_volume_type := fetch;
 
 	
-	-- Costanti che servono per le varie operazioni, commentare bene
-	constant 	step_div 			: 	integer := 2**division_step;
-	constant    step_div2   		: 	integer := 2**(division_step-1) + 512;
-	constant	shift				:	integer := 512/step_div;
+	-- Costante che mi calcola quanto sono grandi gli step di attenuazione
+	constant 	step_div 			: 	INTEGER := 2**division_step;
+	-- Costante che mi pone al limite tra lo step 0 e lo step +1
+	constant    shift   			: 	INTEGER := 2**(division_step-1) + 512;
+	-- Costante che mi serve per calcolare di quanto devo 
+	-- shiftare il vettore per ottenere l'attenauazione desiderata
+	constant	offset				:	INTEGER := 512/step_div;
 	
-	-- Questi segnali li dovremmo poter eliminare
-	signal		zero_vol			: 	unsigned(9 downto 0) := (others => '0');
-	signal      one_vol         	: 	unsigned(9 downto 0) := (others => '1');
-	constant	max_step 			: 	integer := (512/step_div) - 1;
-	signal		counter				:	integer := 0;
-
+	-- Registro che serve a contare il numero di shift quando vado nello stato dell'amplificazione per evitare overflow
+	signal		counter				:	INTEGER := 0;
 	-- Registro in cui salvo quante volte devo shiftare il vettore per moltiplicare o dividere
-	signal		num_of_step_y		: 	integer := 0;
+	signal		num_of_step_y		: 	INTEGER := 0;
 	-- Registro in cui salvo il valore del tlast associato al segnale in ingresso
-	signal		t_last_reg			:	std_logic;
+	signal		t_last_reg			:	STD_LOGIC;
 	-- Registro in cui salvo il valore del dato in ingresso tramite s_axis_tdata nella sua forma corretta, ovvero SIGNED
-	signal		mem_data			:	signed(23 downto 0) := (others => '0');
+	signal		mem_data			:	SIGNED(23 downto 0) := (others => '0');
 	-- Regsitro in cui salvo il valore del dato in ingresso tramite volume nella sua forma corretta, ovvero UNSIGNED
-	signal		mem_volume			:	unsigned(9 downto 0) := (others => '0');
+	signal		mem_volume			:	UNSIGNED(9 downto 0) := (others => '0');
 
 begin
 
@@ -107,30 +106,32 @@ begin
 
 					when control =>
 						
-						if mem_volume >= step_div2 then
+						if mem_volume >= shift then
 							
 							-- Costante che mi permette di calcolare di quanto devo shiftare 
 							-- mem_data per avere l'attenuazione/amplificazione desiderata
-							num_of_step_y <= to_integer(shift_right(mem_volume,division_step)) - shift; 
+							num_of_step_y <= to_integer(shift_right(mem_volume,division_step)) - offset; 
 							
 							state_volume <= amplification;
 
-						elsif mem_volume < step_div2-step_div then
+						elsif mem_volume < shift-step_div then
 							
 							-- Costante che mi permette di calcolare di quanto devo shiftare 
 							-- mem_data per avere l'attenuazione/amplificazione desiderata
-							num_of_step_y <= -(to_integer(shift_right(mem_volume,division_step)) - shift); 
+							num_of_step_y <= -(to_integer(shift_right(mem_volume,division_step)) - offset); 
 
-						state_volume <= attenuation;
+							state_volume <= attenuation;
 
 						else
 							state_volume <= send;
 						
 						end if;
 
-
+					-- L'operazione di amplificazione e' stata gestita in maniera differente 
+					-- dall'attenuazione per poter gestire piu' facilmente il clipping
 					when amplification =>
 
+							-- Se il counter arriva al numero di shift che devo eseguire mando il segnale e resetto il counter
 							if counter = num_of_step_y then
 								
 								counter <= 0;
@@ -138,7 +139,7 @@ begin
 
 							else
 								
-								-- Caso in cui, eseguendo un ulteriore shift ho overflow
+								-- Caso in cui eseguendo un ulteriore shift ho overflow
 								if mem_data(mem_data'high) /= mem_data(mem_data'high-1) then
 
 									-- Se il dato e' negativo clippo mem_data al massimo numero negativo
@@ -158,10 +159,12 @@ begin
 										state_volume <= send;
 									end if;
 									
-								-- Caso in cui posso continuare a moltiplicare, faccio un padding con uno 0
+								-- Caso in cui posso continuare a moltiplicare, shifto di una sola posizione alla volta
+								-- Non e' possibile shiftare direttamente di un num_of_step_y volte perche' la funzione
+								-- shift_left(right) non tiene conto del possibile overflow del vettore
 								else
 									
-									mem_data <= mem_data(mem_data'high downto mem_data'low+1) & '0';
+									mem_data <= shift_left(mem_data,1);
 									counter <= counter + 1;
 							
 								end if;
