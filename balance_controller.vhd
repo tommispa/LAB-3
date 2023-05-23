@@ -29,16 +29,28 @@ end balance_controller;
 
 
 architecture Behavioral of balance_controller is
-	-- Registro in cui salvo quante volte devo shiftare il vettore per moltiplicare o dividere
-	signal		num_of_step_x	: integer := 0;
 
-	constant 	step_div 	    : integer := 2**division_step;
-	constant    step_div2       : integer := 2**(division_step-1) + 512;
-	constant	shift			: integer := 512/step_div;
-
+	-- Macchina a stati con cincque stati
+	-- Fetch: prende il dato in ingresso e lo carica su una memoria
+	-- Control: verifico quale dei due canali devo abbassare
+	-- Left_channel: vado in questo stato se devo abbassare il canale sinistro
+	-- Right_channel: vado in questo canale se devo abbassare il canale destro
+	-- Send: fa uscire il dato dal bus dati del master
 	type state_balance_type is (fetch, control, left_channel, right_channel, send);
 	signal state_balance : state_balance_type := fetch;
+
 	
+	-- Costante che mi calcola quanto sono grandi gli step di attenuazione
+	constant 	step_div 	    : integer := 2**division_step;
+	-- Costante che mi pone al limite tra lo step 0 e lo step +1
+	constant    shift       	: integer := 2**(division_step-1) + 512;
+	-- Costante che mi serve per calcolare di quanto devo 
+	-- shiftare il vettore per ottenere l'attenauazione desiderata
+	constant	offset			: integer := 512/step_div;
+
+
+	-- Registro in cui salvo quante volte devo shiftare il vettore per moltiplicare o dividere
+	signal		num_of_step_x	: integer := 0;
 	-- Registro in cui salvo il valore del tlast associato al segnale in ingresso
 	signal		t_last_reg			:	std_logic;
 	-- Registro in cui salvo il valore del dato in ingresso tramite s_axis_tdata nella sua forma corretta, ovvero SIGNED
@@ -48,6 +60,8 @@ architecture Behavioral of balance_controller is
 
 begin
 
+
+	-- Alzo il segnale s_axis_tready solamente quando devo prendere il dato
 	with state_balance select s_axis_tready <=
 		'1' when fetch,
 		'0' when control,
@@ -55,6 +69,7 @@ begin
 		'0' when right_channel,
 		'0' when send;
 
+	-- Alzo il segnale m_axis_tvalid solamente quando devo mandare il dato al blocco successivo
 	with state_balance select m_axis_tvalid <=
 		'0' when fetch,
 		'0' when control,
@@ -68,6 +83,7 @@ begin
 	
 		begin
 
+			-- Se si abbassa il segnale di reset inizializzo tutti i registri
 			if aresetn = '0' then
                
                 mem_balance <= (others => '0');
@@ -94,16 +110,18 @@ begin
 					
 					when control =>
 							
-						if mem_balance >= step_div2 then
+						if mem_balance >= shift then
+							
 							-- Costante che mi permette di calcolare di quanto devo shiftare 
 							-- mem_data per avere l'attenuazione desiderata
-							num_of_step_x <= to_integer(shift_right(mem_balance,division_step)) - shift;
+							num_of_step_x <= to_integer(shift_right(mem_balance,division_step)) - offset;
 						
 						state_balance <= left_channel;
 						
-						elsif mem_balance < step_div2-step_div then
+						elsif mem_balance < shift-step_div then
+							
 							-- Stessa costante, ma cambiata di segno in quanto altrimenti sarebbe negativa
-							num_of_step_x <= -(to_integer(shift_right(mem_balance,division_step)) - shift);
+							num_of_step_x <= -(to_integer(shift_right(mem_balance,division_step)) - offset);
 						
 							state_balance <= right_channel;
 						
