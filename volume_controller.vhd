@@ -36,9 +36,7 @@ architecture Behavioral of volume_controller is
 	type state_volume_type is (fetch, control, amplification, attenuation, send);
 	signal state_volume : state_volume_type;
 
-	-- Registro in cui salvo quante volte devo shiftare il vettore per moltiplicare o dividere
-	signal		num_of_step_y		: 	integer := 0;
-
+	
 	-- Costanti che servono per le varie operazioni, commentare bene
 	constant 	step_div 			: 	integer := 2**division_step;
 	constant    step_div2   		: 	integer := 2**(division_step-1) + 512;
@@ -48,7 +46,10 @@ architecture Behavioral of volume_controller is
 	signal		zero_vol			: 	unsigned(9 downto 0) := (others => '0');
 	signal      one_vol         	: 	unsigned(9 downto 0) := (others => '1');
 	constant	max_step 			: 	integer := (512/step_div) - 1;
+	signal		counter				:	integer := 0;
 
+	-- Registro in cui salvo quante volte devo shiftare il vettore per moltiplicare o dividere
+	signal		num_of_step_y		: 	integer := 0;
 	-- Registro in cui salvo il valore del tlast associato al segnale in ingresso
 	signal		t_last_reg			:	std_logic;
 	-- Registro in cui salvo il valore del dato in ingresso tramite s_axis_tdata nella sua forma corretta, ovvero SIGNED
@@ -107,10 +108,15 @@ begin
 					when control =>
 						
 						if mem_volume >= step_div2 then
+							
+							-- Costante che mi permette di calcolare di quanto devo shiftare 
+							-- mem_data per avere l'attenuazione/amplificazione desiderata
+							num_of_step_y <= to_integer(shift_right(mem_volume,division_step)) - shift; 
+							
 							state_volume <= amplification;
-						
 
 						elsif mem_volume < step_div2-step_div then
+							
 							-- Costante che mi permette di calcolare di quanto devo shiftare 
 							-- mem_data per avere l'attenuazione/amplificazione desiderata
 							num_of_step_y <= -(to_integer(shift_right(mem_volume,division_step)) - shift); 
@@ -125,21 +131,42 @@ begin
 
 					when amplification =>
 
-						mem_data <= shift_left(mem_data, num_of_step_y); -- non si puo' implementare cosi' perche' non tiene conto dell'overflow
-						
-						--gen_loop: for i in 1 to max_step loop
+							if counter = num_of_step_y then
+								
+								counter <= 0;
+								state_volume <= send;
 
-							--if i <= num_of_step_y then
+							else
+								
+								-- Caso in cui, eseguendo un ulteriore shift ho overflow
+								if mem_data(mem_data'high) /= mem_data(mem_data'high-1) then
 
-							--	mem_data <= mem_data(mem_data'high-1 downto 0) & '0';
+									-- Se il dato e' negativo clippo mem_data al massimo numero negativo
+									if mem_data(mem_data'high) = '1' then
+										
+										mem_data <= (mem_data'high => '1', others => '0');
+										counter <= 0;
 
-							--end if;
+										state_volume <= send;
+									
+									-- Se il dato e' positivo clippo mem_data al massimo numero positivo
+									else
+										
+										mem_data <= (mem_data'high => '0', others => '1'); 
+										counter <= 0;
 
-						--end loop gen_loop;
+										state_volume <= send;
+									end if;
+									
+								-- Caso in cui posso continuare a moltiplicare, faccio un padding con uno 0
+								else
+									
+									mem_data <= mem_data(mem_data'high downto mem_data'low+1) & '0';
+									counter <= counter + 1;
+							
+								end if;
+							end if;
 
-						state_volume <= send;
-
-					
 					when attenuation =>
 							
 						mem_data <= shift_right(mem_data,num_of_step_y);
