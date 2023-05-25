@@ -40,17 +40,17 @@ architecture Behavioral of volume_controller is
 	-- Costante che mi calcola quanto sono grandi gli step di attenuazione
 	constant 	step_div 			: 	INTEGER RANGE 0 TO 512   := 2**division_step;
 	-- Costante che mi pone al limite tra lo step 0 e lo step +1
-	-- Il range di questo integer e' stato leggermente sovrastimato
+	-- Il range di questo integer e' stato leggermente sovrastimato approssimandolo alla potenza di due piu' vicina
 	constant    shift   			: 	INTEGER RANGE 0 TO 1024  := 2**(division_step-1) + 512;
 	-- Costante che mi serve per calcolare di quanto devo shiftare il
 	-- vettore per ottenere l'attenauazione/amplificazione desiderata
 	constant	offset				:	INTEGER RANGE 0 TO 512   := 512/step_div;
 	
 	-- Registro che serve a contare il numero di shift quando vado nello stato dell'amplificazione per evitare overflow
-	-- Il range di questo integer e' stato leggermente sovrastimato
+	-- Il range di questo integer e' stato leggermente sovrastimato approssimandolo alla potenza di due piu' vicina
 	signal		counter				:	INTEGER RANGE 0 TO 1024 := 0;
 	-- Registro in cui salvo quante volte devo shiftare il vettore per moltiplicare o dividere
-	-- Il range di questo integer e' stato leggermente sovrastimato
+	-- Il range di questo integer e' stato leggermente sovrastimato approssimandolo alla potenza di due piu' vicina
 	signal		num_of_step_y		: 	INTEGER RANGE 0 TO 1024 := 0;
 	-- Registro in cui salvo il valore del tlast associato al segnale in ingresso
 	signal		t_last_reg			:	STD_LOGIC;
