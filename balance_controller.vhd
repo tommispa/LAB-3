@@ -35,7 +35,7 @@ architecture Behavioral of balance_controller is
 	-- Control: verifico quale dei due canali devo abbassare
 	-- Left_channel: vado in questo stato se devo abbassare il canale sinistro
 	-- Right_channel: vado in questo canale se devo abbassare il canale destro
-	-- Send: fa uscire il dato dal bus dati del master
+	-- Send: periodo di clock in cui avviene la trasmissione
 	type state_balance_type is (fetch, control, left_channel, right_channel, send);
 	signal state_balance : state_balance_type := fetch;
 
@@ -128,6 +128,11 @@ begin
 							state_balance <= right_channel;
 						
 						else
+							
+							-- Se il joystick non si e' mosso mando direttamente in uscita i dati
+							m_axis_tdata <= s_axis_tdata;
+							m_axis_tlast <= t_last_reg;	
+
 							state_balance <= send;
 						
 						end if;
@@ -135,25 +140,32 @@ begin
 					when left_channel =>
 						
 						-- Vado ad attenuare il segnale solamente se proviene dal canale di sinistra
+						-- Assegno in questo stato m_axis_tdata e m_axis_tlast in modo da rispettare l'handshake
 						if t_last_reg = '0' then
-							mem_data <= shift_right(mem_data,num_of_step_x);
+							m_axis_tdata <= STD_LOGIC_VECTOR(shift_right(mem_data,num_of_step_x));
+						else
+							m_axis_tdata <= STD_LOGIC_VECTOR(mem_data);
 						end if;
 						
+						m_axis_tlast <= t_last_reg;
+
 						state_balance <= send;
 
 					when right_channel =>
 						
 						-- Vado ad attenuare il segnale solamente se proviene dal canale di destra
+						-- Assegno in questo stato m_axis_tdata e m_axis_tlast in modo da rispettare l'handshake
 						if t_last_reg = '1' then
-							mem_data <= shift_right(mem_data,num_of_step_x);
+							m_axis_tdata <= STD_LOGIC_VECTOR(shift_right(mem_data,num_of_step_x));
+						else
+							m_axis_tdata <= STD_LOGIC_VECTOR(mem_data);
 						end if;
 						
+						m_axis_tlast <= t_last_reg;
+
 						state_balance <= send;
 
 					when send =>
-						
-						m_axis_tlast <= t_last_reg;
-						m_axis_tdata <= STD_LOGIC_VECTOR(mem_data(23 downto 0));
 
 						if m_axis_tready = '1' then
 							

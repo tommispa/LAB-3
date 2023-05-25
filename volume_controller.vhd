@@ -32,7 +32,7 @@ architecture Behavioral of volume_controller is
 	-- Control: verifico se il dato in ingresso e' da amplificare, attenuare o lasciare invariato
 	-- Amplification: amplifico il segnale di quanto necessario
 	-- Attenuation: attenuo il segnale di quanto necessario
-	-- Send: fa uscire il dato dal bus dati del master
+	-- Send: periodo di clock in cui avviene la trasmissione
 	type state_volume_type is (fetch, control, amplification, attenuation, send);
 	signal state_volume : state_volume_type := fetch;
 
@@ -126,6 +126,11 @@ begin
 							state_volume <= attenuation;
 
 						else
+
+							-- Se il joystick non si e' mosso mando direttamente in uscita i dati
+							m_axis_tdata <= s_axis_tdata;
+							m_axis_tlast <= t_last_reg;		
+
 							state_volume <= send;
 						
 						end if;
@@ -137,6 +142,10 @@ begin
 							-- Se il counter arriva al numero di shift che devo eseguire mando il segnale e resetto il counter
 							if counter = num_of_step_y then
 								
+								-- Assegno in questo stato m_axis_tdata e m_axis_tlast in modo da rispettare l'handshake
+								m_axis_tlast <= t_last_reg;
+								m_axis_tdata <= std_logic_vector(mem_data(23 downto 0));
+
 								counter <= 0;
 								state_volume <= send;
 
@@ -145,18 +154,22 @@ begin
 								-- Caso in cui eseguendo un ulteriore shift ho overflow
 								if mem_data(mem_data'high) /= mem_data(mem_data'high-1) then
 
-									-- Se il dato e' negativo clippo mem_data al massimo numero negativo
+									-- Se il dato e' negativo clippo m_axis_tdata al massimo numero negativo
 									if mem_data(mem_data'high) = '1' then
 										
-										mem_data <= (mem_data'high => '1', others => '0');
+										-- Assegno in questo stato m_axis_tdata e m_axis_tlast in modo da rispettare l'handshake
+										m_axis_tdata <= (m_axis_tdata'high => '1', others => '0');
+										m_axis_tlast <= t_last_reg;
 										counter <= 0;
 
 										state_volume <= send;
 									
-									-- Se il dato e' positivo clippo mem_data al massimo numero positivo
+									-- Se il dato e' positivo clippo m_axis_tdata al massimo numero positivo
 									else
 										
-										mem_data <= (mem_data'high => '0', others => '1'); 
+										-- Assegno in questo stato m_axis_tdata e m_axis_tlast in modo da rispettare l'handshake
+										m_axis_tdata <= (m_axis_tdata'high => '0', others => '1'); 
+										m_axis_tlast <= t_last_reg;
 										counter <= 0;
 
 										state_volume <= send;
@@ -174,16 +187,15 @@ begin
 							end if;
 
 					when attenuation =>
-							
-						mem_data <= shift_right(mem_data,num_of_step_y);
+						
+						-- Assegno in questo stato m_axis_tdata e m_axis_tlast in modo da rispettare l'handshake
+						m_axis_tdata <= std_logic_vector(shift_right(mem_data,num_of_step_y));
+						m_axis_tlast <= t_last_reg;
 
 						state_volume <= send;
 
 
 					when send =>
-						
-						m_axis_tlast <= t_last_reg;
-						m_axis_tdata <= std_logic_vector(mem_data(23 downto 0));
 										
 						if m_axis_tready = '1' then
 								

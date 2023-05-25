@@ -27,13 +27,11 @@ end dual_mooving_average;
 architecture rtl of dual_mooving_average is
 
 -- Macchina a stati con sei stati
--- Filter_choiche: controlla se il filtro e' attivo o meno
--- Fetch: prende il dato in ingresso e lo carica su una memoria (se il filtro è attivo)
+-- Fetch: prende il dato in ingresso e lo carica su una memoria (se il filtro e' attivo)
 -- Shift: faccio shiftare di una posizione tutti i dati sulla memoria
 -- Pull: fa uscire il dato dal bus dati del master
--- Pass: fa uscire direttamente il dato dal bus dati del master se il filtro non e' attivo
-type state_filter_type is (filter_choice, fetch, shift, sum, pull, pass);
-signal state_filter : state_filter_type := filter_choice;
+type state_filter_type is (fetch, shift, sum, pull);
+signal state_filter : state_filter_type := fetch;
 
 -- Questa costante mi serve per decidere di quanti bit fare il padding per fare la media.
 -- La funzione CEIL non servirebbe in quanto AVERAGE puo' essere solamente una potenza
@@ -61,22 +59,18 @@ begin
     -- Alzo il segnale s_axis_tready solamente quando devo prendere il dato dall'IS_2,
     -- mentre rendo il blocco trasparente quando il filtro non e' attivo
     with state_filter select s_axis_tready <=
-        '0' when filter_choice,
         '1' when fetch,
         '0' when shift,
         '0' when sum,
-        '0' when pull,
-		m_axis_tready when pass;
+        '0' when pull;
 
     -- Alzo il segnale m_axis_tvalid solamente quando devo mandare il dato al blocco 
     -- successivo, mentre rendo il blocco trasparente quando il filtro non e' attivo
     with state_filter select m_axis_tvalid <=
-        '0' when filter_choice,
         '0' when fetch,
         '0' when shift,
         '0' when sum,
-        '1' when pull,
-		s_axis_tvalid when pass;
+        '1' when pull;
 
     process (aclk, aresetn)
     
@@ -91,40 +85,44 @@ begin
             sum_vec_sx <= (others => '0');
             sum_vec_dx <= (others => '0');
 
-            state_filter <= filter_choice;
+            state_filter <= fetch;
 
         elsif rising_edge(aclk) then
             
             case state_filter is
 
-                when filter_choice =>
-
-                    if filter_enable = '1' then
-                        state_filter <= fetch;
-                    else
-                        state_filter <= pass;
-                    end if;
-                        
-
                 when fetch =>
                 
                     if s_axis_tvalid = '1' then
 
-                        -- Assegno al primo elemento della memoria sinistra 
-						-- il dato e tengo traccia di s_axis_tlast
-                        if s_axis_tlast = '0' then
-							t_last_reg <= s_axis_tlast;
-                            mem_sx(0) <= SIGNED(s_axis_tdata);
-                        end if;
+                        if filter_enable = '1' then
 
-                        -- Assegno al primo elemento della memoria destra 
-                        -- il dato e tengo traccia di s_axis_tlast
-						if s_axis_tlast = '1' then
-							t_last_reg <= s_axis_tlast;
-                            mem_dx(0)<= SIGNED(s_axis_tdata);
-                        end if;
+                            -- Assegno al primo elemento della memoria sinistra 
+                            -- il dato e tengo traccia di s_axis_tlast
+                            if s_axis_tlast = '0' then
+                                t_last_reg <= s_axis_tlast;
+                                mem_sx(0) <= SIGNED(s_axis_tdata);
+                                sum_vec_sx <= sum_vec_sx + SIGNED(s_axis_tdata) - mem_sx(AVERAGE - 1);
+                            end if;
+
+                            -- Assegno al primo elemento della memoria destra 
+                            -- il dato e tengo traccia di s_axis_tlast
+                            if s_axis_tlast = '1' then
+                                t_last_reg <= s_axis_tlast;
+                                mem_dx(0)<= SIGNED(s_axis_tdata);
+                                sum_vec_dx <= sum_vec_dx + SIGNED(s_axis_tdata) - mem_dx(AVERAGE - 1);
+                            end if;
                         
-                        state_filter <= shift;
+
+                            state_filter <= shift;
+                        else
+                            
+                            -- Faccio passare direttamente il tlast e il tdata
+					        m_axis_tlast <= s_axis_tlast;
+					        m_axis_tdata <= s_axis_tdata;
+
+                            state_filter <= pull;
+                        end if;
 
                     end if;
                 
@@ -156,29 +154,25 @@ begin
 
                 when sum =>
 
-                    if t_last_reg = '0' then
+                    -- if t_last_reg = '0' then
                         
-                        -- Per aggiornare il vettore somma mi basta sommare l'ultimo
-                        -- sample acquisito e sottrarre l'ultimo sample della memoria
-                        sum_vec_sx <= sum_vec_sx + mem_sx(0) - mem_sx(AVERAGE - 1);
+                    --     -- Per aggiornare il vettore somma mi basta sommare l'ultimo
+                    --     -- sample acquisito e sottrarre l'ultimo sample della memoria
+                    --     sum_vec_sx <= sum_vec_sx + mem_sx(0) - mem_sx(AVERAGE - 1);
 
-                    end if;
+                    -- end if;
                         
-                    if t_last_reg = '1' then
+                    -- if t_last_reg = '1' then
                             
-                        -- Per aggiornare il vettore somma mi basta sommare l'ultimo
-                        -- sample acquisito e sottrarre l'ultimo sample della memoria
-                        sum_vec_dx <= sum_vec_dx + mem_dx(0) - mem_dx(AVERAGE - 1);
+                    --     -- Per aggiornare il vettore somma mi basta sommare l'ultimo
+                    --     -- sample acquisito e sottrarre l'ultimo sample della memoria
+                    --     sum_vec_dx <= sum_vec_dx + mem_dx(0) - mem_dx(AVERAGE - 1);
 
-                    end if;
-					
-					state_filter <= pull;
-                
-                when pull =>
-                    
+                    -- end if;
+
                     if t_last_reg = '0' then
                                 
-                        -- Mando in uscita solamente i 24 bit più significativi, ed in questo modo faccio la media
+                        -- Mando in uscita solamente i 24 bit pi� significativi, ed in questo modo faccio la media
                         m_axis_tlast <= t_last_reg;
                         m_axis_tdata <= std_logic_vector(sum_vec_sx(23 + bit_avarage downto bit_avarage));
 
@@ -186,26 +180,22 @@ begin
                     
                     if t_last_reg = '1' then
                         
-                        -- Mando in uscita solamente i 24 bit più significativi, ed in questo modo faccio la media
+                        -- Mando in uscita solamente i 24 bit pi� significativi, ed in questo modo faccio la media
                         m_axis_tlast <= t_last_reg;
                         m_axis_tdata <= std_logic_vector(sum_vec_dx(23 + bit_avarage downto bit_avarage)); 
 
                     end if;
+					
+					state_filter <= pull;
+                
+                when pull =>
                     
                     if m_axis_tready = '1' then
                             
-                        state_filter <= filter_choice;
+                        state_filter <= fetch;
 
                     end if;
-                    
-                when pass =>
-                    
-                    -- Faccio passare direttamente il tlast e il tdata
-					m_axis_tlast <= s_axis_tlast;
-					m_axis_tdata <= s_axis_tdata;
-
-                    state_filter <= filter_choice;
-                    
+        
             end case;
 
         end if;
