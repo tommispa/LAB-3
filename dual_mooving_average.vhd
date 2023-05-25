@@ -26,11 +26,13 @@ end dual_mooving_average;
 
 architecture rtl of dual_mooving_average is
 
--- Macchina a stati con sei stati
--- Fetch: prende il dato in ingresso e lo carica su una memoria (se il filtro e' attivo)
--- Shift: faccio shiftare di una posizione tutti i dati sulla memoria
--- Pull: fa uscire il dato dal bus dati del master
-type state_filter_type is (fetch, shift, sum, pull);
+-- Macchina a stati con quattro stati
+-- Fetch: Prendo e il dato e, se il filtro e' attivo svolgo tutti i passaggi computazionali, altrimenti lo
+-- mando direttamente in uscita 
+-- Shift: viene eseguito lo shift delle memorie
+-- Write: Salvo il dato modificato sul bus dati del master
+-- Send: periodo di clock in cui avviene la trasmissione
+type state_filter_type is (fetch, shift, write, send);
 signal state_filter : state_filter_type := fetch;
 
 -- Questa costante mi serve per decidere di quanti bit fare il padding per fare la media.
@@ -61,16 +63,16 @@ begin
     with state_filter select s_axis_tready <=
         '1' when fetch,
         '0' when shift,
-        '0' when sum,
-        '0' when pull;
+        '0' when write,
+        '0' when send;
 
     -- Alzo il segnale m_axis_tvalid solamente quando devo mandare il dato al blocco 
     -- successivo, mentre rendo il blocco trasparente quando il filtro non e' attivo
     with state_filter select m_axis_tvalid <=
         '0' when fetch,
         '0' when shift,
-        '0' when sum,
-        '1' when pull;
+        '0' when write,
+        '1' when send;
 
     process (aclk, aresetn)
     
@@ -97,31 +99,33 @@ begin
 
                         if filter_enable = '1' then
 
-                            -- Assegno al primo elemento della memoria sinistra 
-                            -- il dato e tengo traccia di s_axis_tlast
+                            -- Assegno al primo elemento della memoria sinistra il dato e aggiorno la somma sinistra
                             if s_axis_tlast = '0' then
+                                
                                 t_last_reg <= s_axis_tlast;
                                 mem_sx(0) <= SIGNED(s_axis_tdata);
                                 sum_vec_sx <= sum_vec_sx + SIGNED(s_axis_tdata) - mem_sx(AVERAGE - 1);
+                            
                             end if;
 
-                            -- Assegno al primo elemento della memoria destra 
-                            -- il dato e tengo traccia di s_axis_tlast
+                            -- Assegno al primo elemento della memoria destra il dato e aggiorno la somma destra
                             if s_axis_tlast = '1' then
+                                
                                 t_last_reg <= s_axis_tlast;
                                 mem_dx(0)<= SIGNED(s_axis_tdata);
                                 sum_vec_dx <= sum_vec_dx + SIGNED(s_axis_tdata) - mem_dx(AVERAGE - 1);
+                            
                             end if;
-                        
 
                             state_filter <= shift;
+                        
                         else
                             
                             -- Faccio passare direttamente il tlast e il tdata
 					        m_axis_tlast <= s_axis_tlast;
 					        m_axis_tdata <= s_axis_tdata;
 
-                            state_filter <= pull;
+                            state_filter <= send;
                         end if;
 
                     end if;
@@ -150,29 +154,13 @@ begin
 
                     end if;
                     
-                    state_filter <= sum;
+                    state_filter <= write;
 
-                when sum =>
-
-                    -- if t_last_reg = '0' then
-                        
-                    --     -- Per aggiornare il vettore somma mi basta sommare l'ultimo
-                    --     -- sample acquisito e sottrarre l'ultimo sample della memoria
-                    --     sum_vec_sx <= sum_vec_sx + mem_sx(0) - mem_sx(AVERAGE - 1);
-
-                    -- end if;
-                        
-                    -- if t_last_reg = '1' then
-                            
-                    --     -- Per aggiornare il vettore somma mi basta sommare l'ultimo
-                    --     -- sample acquisito e sottrarre l'ultimo sample della memoria
-                    --     sum_vec_dx <= sum_vec_dx + mem_dx(0) - mem_dx(AVERAGE - 1);
-
-                    -- end if;
+                when write =>
 
                     if t_last_reg = '0' then
                                 
-                        -- Mando in uscita solamente i 24 bit pi� significativi, ed in questo modo faccio la media
+                        -- Mando in uscita solamente i 24 bit piu' significativi, ed in questo modo faccio la media
                         m_axis_tlast <= t_last_reg;
                         m_axis_tdata <= std_logic_vector(sum_vec_sx(23 + bit_avarage downto bit_avarage));
 
@@ -180,15 +168,15 @@ begin
                     
                     if t_last_reg = '1' then
                         
-                        -- Mando in uscita solamente i 24 bit pi� significativi, ed in questo modo faccio la media
+                        -- Mando in uscita solamente i 24 bit piu' significativi, ed in questo modo faccio la media
                         m_axis_tlast <= t_last_reg;
                         m_axis_tdata <= std_logic_vector(sum_vec_dx(23 + bit_avarage downto bit_avarage)); 
 
                     end if;
 					
-					state_filter <= pull;
+					state_filter <= send;
                 
-                when pull =>
+                when send =>
                     
                     if m_axis_tready = '1' then
                             

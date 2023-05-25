@@ -39,7 +39,6 @@ architecture Behavioral of balance_controller is
 	type state_balance_type is (fetch, control, left_channel, right_channel, send);
 	signal state_balance : state_balance_type := fetch;
 
-	
 	-- Costante che mi calcola quanto sono grandi gli step di attenuazione
 	constant 	step_div 			: 	INTEGER RANGE 0 TO 512   := 2**division_step;
 	-- Costante che mi pone al limite tra lo step 0 e lo step +1
@@ -48,7 +47,6 @@ architecture Behavioral of balance_controller is
 	-- Costante che mi serve per calcolare di quanto devo 
 	-- shiftare il vettore per ottenere l'attenauazione desiderata
 	constant	offset				:	INTEGER RANGE 0 TO 512   := 512/step_div;
-
 
 	-- Registro in cui salvo quante volte devo shiftare il vettore per moltiplicare o dividere
 	-- Il range di questo integer e' stato leggermente sovrastimato approssimandolo alla potenza di due piu' vicina
@@ -61,7 +59,6 @@ architecture Behavioral of balance_controller is
 	signal		mem_balance			: UNSIGNED(9 downto 0) 		:= (others => '0');
 
 begin
-
 
 	-- Alzo il segnale s_axis_tready solamente quando devo prendere il dato
 	with state_balance select s_axis_tready <=
@@ -79,9 +76,7 @@ begin
 		'0' when right_channel,
 		'1' when send;
 
-
 	process (aclk, aresetn)
-	
 	
 		begin
 

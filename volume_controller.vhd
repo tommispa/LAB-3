@@ -35,7 +35,6 @@ architecture Behavioral of volume_controller is
 	-- Send: periodo di clock in cui avviene la trasmissione
 	type state_volume_type is (fetch, control, amplification, attenuation, send);
 	signal state_volume : state_volume_type := fetch;
-
 	
 	-- Costante che mi calcola quanto sono grandi gli step di attenuazione
 	constant 	step_div 			: 	INTEGER RANGE 0 TO 512   := 2**division_step;
@@ -78,7 +77,6 @@ begin
 		'1' when send;
 		
 	process (aclk, aresetn)
-
 	
 		begin
 			
@@ -145,8 +143,8 @@ begin
 								-- Assegno in questo stato m_axis_tdata e m_axis_tlast in modo da rispettare l'handshake
 								m_axis_tlast <= t_last_reg;
 								m_axis_tdata <= std_logic_vector(mem_data(23 downto 0));
-
 								counter <= 0;
+
 								state_volume <= send;
 
 							else
