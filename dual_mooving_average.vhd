@@ -176,23 +176,23 @@ begin
                 
                 when pull =>
                     
-                    if m_axis_tready = '1' then
-                            
-                        if t_last_reg = '0' then
-							
-                            -- Mando in uscita solamente i 24 bit più significativi, ed in questo modo faccio la media
-                            m_axis_tlast <= t_last_reg;
-					        m_axis_tdata <= std_logic_vector(sum_vec_sx(23 + bit_avarage downto bit_avarage));
+                    if t_last_reg = '0' then
+                                
+                        -- Mando in uscita solamente i 24 bit più significativi, ed in questo modo faccio la media
+                        m_axis_tlast <= t_last_reg;
+                        m_axis_tdata <= std_logic_vector(sum_vec_sx(23 + bit_avarage downto bit_avarage));
 
-                        end if;
+                    end if;
+                    
+                    if t_last_reg = '1' then
                         
-                        if t_last_reg = '1' then
-                            
-                            -- Mando in uscita solamente i 24 bit più significativi, ed in questo modo faccio la media
-                            m_axis_tlast <= t_last_reg;
-						    m_axis_tdata <= std_logic_vector(sum_vec_dx(23 + bit_avarage downto bit_avarage)); 
+                        -- Mando in uscita solamente i 24 bit più significativi, ed in questo modo faccio la media
+                        m_axis_tlast <= t_last_reg;
+                        m_axis_tdata <= std_logic_vector(sum_vec_dx(23 + bit_avarage downto bit_avarage)); 
 
-                        end if;
+                    end if;
+                    
+                    if m_axis_tready = '1' then
                             
                         state_filter <= filter_choice;
 

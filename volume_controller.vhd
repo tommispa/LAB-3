@@ -38,23 +38,26 @@ architecture Behavioral of volume_controller is
 
 	
 	-- Costante che mi calcola quanto sono grandi gli step di attenuazione
-	constant 	step_div 			: 	INTEGER := 2**division_step;
+	constant 	step_div 			: 	INTEGER RANGE 0 TO 512   := 2**division_step;
 	-- Costante che mi pone al limite tra lo step 0 e lo step +1
-	constant    shift   			: 	INTEGER := 2**(division_step-1) + 512;
-	-- Costante che mi serve per calcolare di quanto devo 
-	-- shiftare il vettore per ottenere l'attenauazione desiderata
-	constant	offset				:	INTEGER := 512/step_div;
+	-- Il range di questo integer e' stato leggermente sovrastimato
+	constant    shift   			: 	INTEGER RANGE 0 TO 1024  := 2**(division_step-1) + 512;
+	-- Costante che mi serve per calcolare di quanto devo shiftare il
+	-- vettore per ottenere l'attenauazione/amplificazione desiderata
+	constant	offset				:	INTEGER RANGE 0 TO 512   := 512/step_div;
 	
 	-- Registro che serve a contare il numero di shift quando vado nello stato dell'amplificazione per evitare overflow
-	signal		counter				:	INTEGER := 0;
+	-- Il range di questo integer e' stato leggermente sovrastimato
+	signal		counter				:	INTEGER RANGE 0 TO 1024 := 0;
 	-- Registro in cui salvo quante volte devo shiftare il vettore per moltiplicare o dividere
-	signal		num_of_step_y		: 	INTEGER := 0;
+	-- Il range di questo integer e' stato leggermente sovrastimato
+	signal		num_of_step_y		: 	INTEGER RANGE 0 TO 1024 := 0;
 	-- Registro in cui salvo il valore del tlast associato al segnale in ingresso
 	signal		t_last_reg			:	STD_LOGIC;
 	-- Registro in cui salvo il valore del dato in ingresso tramite s_axis_tdata nella sua forma corretta, ovvero SIGNED
-	signal		mem_data			:	SIGNED(23 downto 0) := (others => '0');
+	signal		mem_data			:	SIGNED(23 downto 0) 	:= (others => '0');
 	-- Regsitro in cui salvo il valore del dato in ingresso tramite volume nella sua forma corretta, ovvero UNSIGNED
-	signal		mem_volume			:	UNSIGNED(9 downto 0) := (others => '0');
+	signal		mem_volume			:	UNSIGNED(9 downto 0) 	:= (others => '0');
 
 begin
 
@@ -179,10 +182,10 @@ begin
 
 					when send =>
 						
+						m_axis_tlast <= t_last_reg;
+						m_axis_tdata <= std_logic_vector(mem_data(23 downto 0));
+										
 						if m_axis_tready = '1' then
-							
-							m_axis_tlast <= t_last_reg;
-							m_axis_tdata <= std_logic_vector(mem_data(23 downto 0));
 								
 							state_volume <= fetch;
 						end if;
